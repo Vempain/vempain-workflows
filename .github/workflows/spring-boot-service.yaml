@@ -1,0 +1,218 @@
+name: Spring Boot Service CI
+
+# Reusable workflow for Vempain Spring Boot services that build a Docker image
+# and optionally publish an :api sub-project to GitHub Packages (Maven).
+#
+# Callers: vempain-admin-backend, vempain-file-backend
+
+on:
+  workflow_call:
+    inputs:
+      java_version:
+        description: 'Temurin JDK version'
+        type: string
+        default: '25'
+      install_exiftool:
+        description: 'Install exiftool (apt) before running tests'
+        type: boolean
+        default: false
+      run_test_setup:
+        description: 'Run ./testSetup.sh before running tests (admin-backend only)'
+        type: boolean
+        default: false
+      publish_api:
+        description: 'Run :api:publish on Merge-PR commits'
+        type: boolean
+        default: true
+      test_results_path:
+        description: 'Relative path to test reports uploaded as an artefact'
+        type: string
+        default: 'service/build/reports'
+
+env:
+  REGISTRY: ghcr.io
+  REGISTRY_NAMESPACE: vempain
+  IMAGE_NAME: ${{ github.repository }}
+
+concurrency: build
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  test:
+    name: Run all tests
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up Java temurin ${{ inputs.java_version }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+
+      - name: Install exiftool
+        if: inputs.install_exiftool
+        run: sudo apt-get install -y exiftool
+
+      - name: Run test setup script
+        if: inputs.run_test_setup
+        shell: bash
+        run: sudo ./testSetup.sh --developer-name $(whoami) --skip-root-check --skip-answers
+
+      - name: Run tests with Gradle
+        run: ./gradlew clean test
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v7
+        if: success() || failure()
+        with:
+          name: test-results
+          path: ${{ inputs.test_results_path }}
+          retention-days: 2
+          compression-level: 9
+          overwrite: true
+          if-no-files-found: warn
+
+  # ──────────────────────────────────────────────────────────────────────────
+  build-upload:
+    name: Build Docker image and optionally publish API
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Get main and base version
+        id: basemain
+        shell: bash
+        run: |
+          baseVersion=$(cat VERSION)
+          mainVersion=$(echo ${baseVersion} | cut -d '.' -f 1)
+          echo "baseVersion=${baseVersion}" >> $GITHUB_OUTPUT
+          echo "mainVersion=${mainVersion}" >> $GITHUB_OUTPUT
+
+      - name: Generate new version
+        id: newVer
+        shell: bash
+        run: |
+          git fetch --tags origin
+          currentVersion=$(git tag --list --sort=-version:refname "${baseVersion}.*" | head -n 1 || echo "${baseVersion}.0")
+
+          if [ -z "${currentVersion}" ]; then
+            newVersion="${baseVersion}.0"
+          else
+            runningNumber=$(echo ${currentVersion} | cut -f 3 -d '.')
+            newVersion="${baseVersion}.$((${runningNumber} + 1))"
+          fi
+          echo "The generated new version is: ${newVersion}"
+          echo "newVersion=${newVersion}" >> $GITHUB_OUTPUT
+        env:
+          baseVersion: ${{ steps.basemain.outputs.baseVersion }}
+
+      - name: Set up Java temurin ${{ inputs.java_version }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          dependency-graph: generate-and-submit
+          cache-read-only: false
+
+      - name: Build jar-file with Gradle
+        shell: bash
+        run: ./gradlew clean bootJar -Pversion=${newVersion}
+        env:
+          newVersion: ${{ steps.newVer.outputs.newVersion }}
+
+      - name: Publish API to GitHub Packages (Maven)
+        if: inputs.publish_api && contains(github.event.head_commit.message, 'Merge pull request')
+        run: ./gradlew :api:clean :api:publish -PreleaseVersion=${newVersion}
+        env:
+          newVersion: ${{ steps.newVer.outputs.newVersion }}
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image to registry
+        shell: bash
+        run: |
+          imgName="${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')"
+          docker build . --tag ${imgName}:latest
+          echo "Setting versions to: '${mainVersion}', '${baseVersion}', '${newVersion}'"
+          docker image tag ${imgName}:latest ${imgName}:${mainVersion}
+          docker image tag ${imgName}:latest ${imgName}:${baseVersion}
+          docker image tag ${imgName}:latest ${imgName}:${newVersion}
+          docker push --all-tags ${imgName}
+        env:
+          mainVersion: ${{ steps.basemain.outputs.mainVersion }}
+          baseVersion: ${{ steps.basemain.outputs.baseVersion }}
+          newVersion: ${{ steps.newVer.outputs.newVersion }}
+
+      - name: Create tag
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/${{ steps.newVer.outputs.newVersion }}',
+              sha: context.sha
+            })
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = '${{ steps.newVer.outputs.newVersion }}';
+            const resp = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Release ${tag}`,
+              body: [
+                `Automated release for ${tag}`,
+                '',
+                'Docker tags pushed:',
+                '- latest',
+                `- ${{ steps.basemain.outputs.mainVersion }}`,
+                `- ${{ steps.basemain.outputs.baseVersion }}`,
+                `- ${tag}`
+              ].join('\n'),
+              draft: false,
+              prerelease: false,
+              generate_release_notes: true
+            });
+            core.info(`Release created: ${resp.data.html_url}`);
+

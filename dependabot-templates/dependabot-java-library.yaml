@@ -1,0 +1,35 @@
+# Dependabot configuration for Spring Boot library repositories
+# (vempain-auth)
+#
+# Copy this file to .github/dependabot.yml in the target repository.
+
+version: 2
+updates:
+  # Keep GitHub Actions up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    registries: "*"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 15
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+
+  # Keep Gradle dependencies up to date
+  - package-ecosystem: "gradle"
+    directory: "/"
+    registries: "*"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 15
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+

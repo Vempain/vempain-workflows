@@ -1,0 +1,74 @@
+# Dependabot configuration for mixed PHP+TypeScript website repositories
+# (vempain-website)
+#
+# Copy this file to .github/dependabot.yml in the target repository.
+
+version: 2
+updates:
+  # Keep GitHub Actions up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 15
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+
+  # Keep Composer (PHP backend) dependencies up to date
+  - package-ecosystem: "composer"
+    directory: "/backend"
+    registries: "*"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 15
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+
+  # Keep npm/yarn (TypeScript frontend) dependencies up to date
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    registries: "*"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 15
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+
+  # Keep backend Docker base image up to date
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+
+  # Keep frontend Docker base image up to date
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+

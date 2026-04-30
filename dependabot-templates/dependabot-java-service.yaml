@@ -1,0 +1,46 @@
+# Dependabot configuration for Spring Boot service repositories
+# (vempain-admin-backend, vempain-file-backend)
+#
+# Copy this file to .github/dependabot.yml in the target repository.
+
+version: 2
+updates:
+  # Keep GitHub Actions up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 15
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+
+  # Keep Gradle dependencies up to date
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 15
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+
+  # Keep base Docker image up to date
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+

@@ -1,0 +1,61 @@
+# Dependabot configuration for TypeScript/JS frontend SPA repositories
+# (vempain-admin-frontend, vempain-file-frontend, vempain-site)
+#
+# Copy this file to .github/dependabot.yml in the target repository.
+#
+# NOTE: If the project depends on private @vempain packages from
+# npm.pkg.github.com, add the npm-github registry block below and
+# reference it in the npm update entry.
+
+version: 2
+
+# Uncomment for projects that consume private @vempain npm packages:
+# registries:
+#   npm-github:
+#     type: npm-registry
+#     url: https://npm.pkg.github.com
+#     token: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
+
+updates:
+  # Keep GitHub Actions up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    registries: "*"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 15
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+
+  # Keep npm/yarn dependencies up to date
+  # Add `registries: [npm-github]` if the project uses private @vempain packages
+  - package-ecosystem: "npm"
+    directory: "/"
+    registries: "*"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 15
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+
+  # Keep base Docker image up to date
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      dependencies:
+        update-types:
+          - minor
+          - patch
+          - major
+
