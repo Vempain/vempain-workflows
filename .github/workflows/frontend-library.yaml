@@ -130,6 +130,7 @@ jobs:
           github-token: ${{ github.token }}
           script: |
             const tag = '${{ steps.version.outputs.new_version }}';
+            const packageUrl = `https://github.com/orgs/${context.repo.owner}/packages?repo_name=${context.repo.repo}&ecosystem=npm`;
             const resp = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -137,6 +138,9 @@ jobs:
               name: `Release ${tag}`,
               body: [
                 `Automated release for ${tag}`,
+                '',
+                'Build artifacts:',
+                `- npm package list: ${packageUrl}`,
                 '',
                 'NPM package versions published:',
                 '- latest',

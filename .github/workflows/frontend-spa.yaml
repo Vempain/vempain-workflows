@@ -263,6 +263,7 @@ jobs:
           github-token: ${{ github.token }}
           script: |
             const tag = '${{ inputs.version_tag_prefix }}${{ steps.version.outputs.new_version }}';
+            const packageUrl = `https://github.com/orgs/${context.repo.owner}/packages?repo_name=${context.repo.repo}&ecosystem=container`;
             const resp = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -270,6 +271,9 @@ jobs:
               name: `Release ${tag}`,
               body: [
                 `Automated release for ${tag}`,
+                '',
+                'Build artifacts:',
+                `- Docker image package: ${packageUrl}`,
                 '',
                 'Docker tags pushed:',
                 ${{ inputs.push_all_version_tags }} ? '- latest' : '',

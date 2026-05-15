@@ -173,13 +173,22 @@ jobs:
           github-token: ${{ github.token }}
           script: |
             const tag = '${{ steps.version.outputs.new_version }}';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const dockerPackageUrl = `https://github.com/orgs/${owner}/packages?repo_name=${repo}&ecosystem=container`;
+            const mavenPackageUrl = `https://github.com/orgs/${owner}/packages?repo_name=${repo}&ecosystem=maven`;
+
             const resp = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner,
+              repo,
               tag_name: tag,
               name: `Release ${tag}`,
               body: [
                 `Automated release for ${tag}`,
+                '',
+                'Build artifacts:',
+                `- Docker image package: ${dockerPackageUrl}`,
+                ${{ inputs.publish_api }} ? `- Maven API package list: ${mavenPackageUrl}` : '',
                 '',
                 'Docker tags pushed:',
                 '- latest',
