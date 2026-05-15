@@ -10,6 +10,13 @@ for all [Vempain](https://github.com/Vempain) repositories.
 All reusable workflows live in `.github/workflows/` and are called via
 `uses: Vempain/vempain-workflows/.github/workflows/<file>@main`.
 
+Shared versioning logic is centralized in `.github/actions/generate-version/action.yaml`.
+Workflows that publish artifacts/images call this composite action to compute:
+
+- `base_version` from `VERSION`
+- `main_version` (major part)
+- `new_version` (next patch version from tags)
+
 ### 1. `spring-boot-service.yaml`
 
 **For:** Spring Boot services that produce a Docker image (± Maven API artefact).

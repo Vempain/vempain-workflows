@@ -73,16 +73,18 @@ jobs:
       - name: Build CLI fat jar
         run: ./gradlew ${{ inputs.gradle_task }}
 
+      - name: Generate versions
+        id: version
+        uses: ./.github/actions/generate-version
+        with:
+          version_file: ${{ inputs.version_file }}
+
       - name: Prepare RPM build sources
         shell: bash
         run: |
           set -euo pipefail
 
-          rpmVersion="$(tr -d '[:space:]' < "${{ inputs.version_file }}")"
-          if [[ -z "${rpmVersion}" ]]; then
-            echo "VERSION file '${{ inputs.version_file }}' is empty" >&2
-            exit 1
-          fi
+          rpmVersion="${{ steps.version.outputs.new_version }}"
 
           mkdir -p "$(dirname "${{ inputs.source_jar_path }}")"
           cp "${{ inputs.jar_path }}" "${{ inputs.source_jar_path }}"
