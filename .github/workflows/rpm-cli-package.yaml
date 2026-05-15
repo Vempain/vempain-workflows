@@ -1,0 +1,123 @@
+name: RPM CLI Package
+
+on:
+  workflow_call:
+    inputs:
+      java_version:
+        description: 'Temurin JDK version used to build the CLI fat jar'
+        type: string
+        default: '25'
+      version_file:
+        description: 'Path to VERSION file used for RPM package version'
+        type: string
+        default: 'VERSION'
+      gradle_task:
+        description: 'Gradle task that builds the runnable CLI fat jar'
+        type: string
+        default: ':cli:fatJar'
+      jar_path:
+        description: 'Path to the built fat jar produced by gradle_task'
+        type: string
+        default: 'cli/build/libs/vf-cli.jar'
+      spec_file:
+        description: 'Path to RPM spec file in the repository'
+        type: string
+        default: 'packaging/rpm/vempain-file-cli.spec'
+      source_jar_path:
+        description: 'Path where the prebuilt jar is copied for rpmbuild sources'
+        type: string
+        default: 'packaging/rpm/vf-cli.jar'
+      wrapper_script_path:
+        description: 'Path to wrapper script included into RPM'
+        type: string
+        default: 'vf-cli'
+      jre_package:
+        description: 'RPM package name required as runtime dependency'
+        type: string
+        default: 'java-21-openjdk-headless'
+      artifact_name:
+        description: 'Name for uploaded RPM artifact'
+        type: string
+        default: 'vempain-file-cli-rpm'
+    secrets:
+      VEMPAIN_ACTION_TOKEN:
+        description: 'Optional token for private package resolution during Gradle build'
+        required: false
+
+jobs:
+  build-rpm:
+    name: Build CLI RPM package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || github.token }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java temurin ${{ inputs.java_version }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build CLI fat jar
+        run: ./gradlew ${{ inputs.gradle_task }}
+
+      - name: Prepare RPM build sources
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rpmVersion="$(tr -d '[:space:]' < "${{ inputs.version_file }}")"
+          if [[ -z "${rpmVersion}" ]]; then
+            echo "VERSION file '${{ inputs.version_file }}' is empty" >&2
+            exit 1
+          fi
+
+          mkdir -p "$(dirname "${{ inputs.source_jar_path }}")"
+          cp "${{ inputs.jar_path }}" "${{ inputs.source_jar_path }}"
+          chmod 0755 "${{ inputs.wrapper_script_path }}"
+
+          sed -i "s/^Version:.*/Version:        ${rpmVersion}/" "${{ inputs.spec_file }}"
+          sed -i "s/^Requires:.*/Requires:       ${{ inputs.jre_package }}/" "${{ inputs.spec_file }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f "${{ inputs.spec_file }}" "${{ inputs.source_jar_path }}" "${{ inputs.wrapper_script_path }}"
+
+          if git diff --cached --quiet; then
+            echo "No staged RPM source changes detected."
+          else
+            git commit -m "ci(rpm): prepare sources [skip ci]"
+          fi
+
+      - name: Build RPM package
+        id: rpmbuild
+        uses: naveenrajm7/rpmbuild@master
+        with:
+          spec_file: ${{ inputs.spec_file }}
+
+      - name: Upload binary RPM artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ steps.rpmbuild.outputs.rpm_dir_path }}
+          if-no-files-found: error
+
+      - name: Upload source RPM artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact_name }}-source
+          path: ${{ steps.rpmbuild.outputs.source_rpm_dir_path }}
+          if-no-files-found: error
+

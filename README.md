@@ -229,6 +229,49 @@ jobs:
 
 ---
 
+### 6. `rpm-cli-package.yaml`
+
+**For:** Repositories that need a separately distributed RPM package for a Java CLI fat jar.
+
+| Caller                 |
+|------------------------|
+| `vempain-file-backend` |
+
+**Inputs**
+
+| Name                  | Type     | Default                               | Description                                     |
+|-----------------------|----------|---------------------------------------|-------------------------------------------------|
+| `java_version`        | `string` | `'25'`                                | Temurin JDK version used for CLI jar build      |
+| `version_file`        | `string` | `VERSION`                             | File containing RPM version                     |
+| `gradle_task`         | `string` | `:cli:fatJar`                         | Gradle task that builds the runnable fat jar    |
+| `jar_path`            | `string` | `cli/build/libs/vf-cli.jar`           | Path to fat jar output                          |
+| `spec_file`           | `string` | `packaging/rpm/vempain-file-cli.spec` | RPM spec file path                              |
+| `source_jar_path`     | `string` | `packaging/rpm/vf-cli.jar`            | Path where prebuilt jar is copied for rpmbuild  |
+| `wrapper_script_path` | `string` | `vf-cli`                              | Wrapper script path included in the package     |
+| `jre_package`         | `string` | `java-21-openjdk-headless`            | Runtime JRE package dependency in resulting RPM |
+| `artifact_name`       | `string` | `vempain-file-cli-rpm`                | Name for uploaded binary/source RPM artifacts   |
+
+**Secrets** — `VEMPAIN_ACTION_TOKEN` (optional, falls back to `GITHUB_TOKEN`)
+
+**Minimal caller example**
+
+```yaml
+# .github/workflows/rpm-cli.yaml
+name: CLI RPM Package
+on:
+  push:
+    branches: [ main ]
+permissions:
+  contents: read
+  packages: read
+jobs:
+  rpm:
+    uses: Vempain/vempain-workflows/.github/workflows/rpm-cli-package.yaml@main
+    secrets: inherit
+```
+
+---
+
 ## Dependabot templates
 
 Ready-to-use Dependabot configurations live in `dependabot-templates/`.
