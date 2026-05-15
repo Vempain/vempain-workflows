@@ -106,7 +106,7 @@ jobs:
 
       - name: Generate versions
         id: version
-        uses: ./.github/actions/generate-version
+        uses: Vempain/vempain-workflows/.github/actions/generate-version@main
 
       - name: Set up Java temurin ${{ inputs.java_version }}
         uses: actions/setup-java@v5

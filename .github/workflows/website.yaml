@@ -159,7 +159,7 @@ jobs:
 
       - name: Generate versions
         id: version
-        uses: ./.github/actions/generate-version
+        uses: Vempain/vempain-workflows/.github/actions/generate-version@main
 
       - name: Copy VERSION into frontend
         shell: bash

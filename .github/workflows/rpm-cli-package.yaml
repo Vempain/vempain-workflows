@@ -75,7 +75,7 @@ jobs:
 
       - name: Generate versions
         id: version
-        uses: ./.github/actions/generate-version
+        uses: Vempain/vempain-workflows/.github/actions/generate-version@main
         with:
           version_file: ${{ inputs.version_file }}
 
