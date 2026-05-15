@@ -49,7 +49,7 @@ jobs:
     name: Build CLI RPM package
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: read
     env:
       GITHUB_ACTOR: ${{ github.actor }}
@@ -109,17 +109,141 @@ jobs:
         with:
           spec_file: ${{ inputs.spec_file }}
 
+      - name: Discover generated RPM files
+        id: discover
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          binaryRpm="$(find "${{ steps.rpmbuild.outputs.rpm_dir_path }}" -maxdepth 2 -type f -name '*.rpm' ! -name '*.src.rpm' | head -n 1)"
+          sourceRpm="$(find "${{ steps.rpmbuild.outputs.source_rpm_dir_path }}" -maxdepth 2 -type f -name '*.src.rpm' | head -n 1)"
+
+          if [[ -z "${binaryRpm}" || -z "${sourceRpm}" ]]; then
+            echo "Failed to locate generated RPM files." >&2
+            exit 1
+          fi
+
+          echo "binary_rpm_path=${binaryRpm}" >> "$GITHUB_OUTPUT"
+          echo "source_rpm_path=${sourceRpm}" >> "$GITHUB_OUTPUT"
+          echo "binary_rpm_name=$(basename "${binaryRpm}")" >> "$GITHUB_OUTPUT"
+          echo "source_rpm_name=$(basename "${sourceRpm}")" >> "$GITHUB_OUTPUT"
+
       - name: Upload binary RPM artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.artifact_name }}
-          path: ${{ steps.rpmbuild.outputs.rpm_dir_path }}
+          path: ${{ steps.discover.outputs.binary_rpm_path }}
           if-no-files-found: error
 
       - name: Upload source RPM artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.artifact_name }}-source
-          path: ${{ steps.rpmbuild.outputs.source_rpm_dir_path }}
+          path: ${{ steps.discover.outputs.source_rpm_path }}
           if-no-files-found: error
+
+      - name: Attach RPMs to release and update release notes
+        uses: actions/github-script@v9
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.new_version }}
+          BINARY_RPM_PATH: ${{ steps.discover.outputs.binary_rpm_path }}
+          SOURCE_RPM_PATH: ${{ steps.discover.outputs.source_rpm_path }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const tag = process.env.RELEASE_TAG;
+            const assetPaths = [process.env.BINARY_RPM_PATH, process.env.SOURCE_RPM_PATH].filter(Boolean);
+
+            const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            let release;
+            for (let attempt = 1; attempt <= 30; attempt += 1) {
+              try {
+                const response = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+                release = response.data;
+                break;
+              } catch (error) {
+                if (error.status !== 404) {
+                  throw error;
+                }
+                core.info(`Release ${tag} not found yet (attempt ${attempt}/30). Waiting 10s...`);
+                await delay(10000);
+              }
+            }
+
+            if (!release) {
+              core.setFailed(`Release ${tag} was not found after waiting 5 minutes.`);
+              return;
+            }
+
+            const existingAssets = await github.paginate(github.rest.repos.listReleaseAssets, {
+              owner,
+              repo,
+              release_id: release.id,
+              per_page: 100
+            });
+
+            const uploadedAssetUrls = [];
+
+            for (const assetPath of assetPaths) {
+              const assetName = path.basename(assetPath);
+              const existingAsset = existingAssets.find((asset) => asset.name === assetName);
+
+              if (existingAsset) {
+                await github.rest.repos.deleteReleaseAsset({
+                  owner,
+                  repo,
+                  asset_id: existingAsset.id
+                });
+              }
+
+              const data = fs.readFileSync(assetPath);
+              await github.rest.repos.uploadReleaseAsset({
+                owner,
+                repo,
+                release_id: release.id,
+                name: assetName,
+                data,
+                headers: {
+                  'content-type': 'application/x-rpm',
+                  'content-length': data.length
+                }
+              });
+
+              uploadedAssetUrls.push({
+                name: assetName,
+                url: `https://github.com/${owner}/${repo}/releases/download/${tag}/${encodeURIComponent(assetName)}`
+              });
+            }
+
+            let body = release.body || '';
+            const additions = [];
+
+            if (!body.includes('### RPM packages')) {
+              additions.push('', '### RPM packages');
+            }
+
+            for (const asset of uploadedAssetUrls) {
+              const line = `- [${asset.name}](${asset.url})`;
+              if (!body.includes(line)) {
+                additions.push(line);
+              }
+            }
+
+            if (additions.length > 0) {
+              body = `${body}${body.endsWith('\n') || body.length === 0 ? '' : '\n'}${additions.join('\n')}\n`;
+              await github.rest.repos.updateRelease({
+                owner,
+                repo,
+                release_id: release.id,
+                body
+              });
+            }
+
+            core.info(`Attached ${uploadedAssetUrls.length} RPM assets to release ${tag}.`);
 

@@ -244,6 +244,12 @@ jobs:
           github-token: ${{ github.token }}
           script: |
             const tag = '${{ steps.version.outputs.new_version }}';
+            const backendImage = '${{ inputs.backend_image }}';
+            const frontendImage = '${{ inputs.frontend_image }}';
+            const backendPackageName = backendImage.split('/').pop();
+            const frontendPackageName = frontendImage.split('/').pop();
+            const backendPackageUrl = `https://github.com/orgs/${context.repo.owner}/packages/container/package/${backendPackageName}`;
+            const frontendPackageUrl = `https://github.com/orgs/${context.repo.owner}/packages/container/package/${frontendPackageName}`;
             const resp = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -251,6 +257,10 @@ jobs:
               name: `Release ${tag}`,
               body: [
                 `Automated release for ${tag}`,
+                '',
+                'Build artifacts:',
+                `- Backend Docker image package: ${backendPackageUrl}`,
+                `- Frontend Docker image package: ${frontendPackageUrl}`,
                 '',
                 'Docker tags pushed:',
                 '- latest',
