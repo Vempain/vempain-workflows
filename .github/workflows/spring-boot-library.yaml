@@ -57,32 +57,9 @@ jobs:
           java-version: ${{ inputs.java_version }}
           distribution: 'temurin'
 
-      - name: Get main and base version
-        id: basemain
-        shell: bash
-        run: |
-          baseVersion=$(cat VERSION)
-          mainVersion=$(echo ${baseVersion} | cut -d '.' -f 1)
-          echo "baseVersion=${baseVersion}" >> $GITHUB_OUTPUT
-          echo "mainVersion=${mainVersion}" >> $GITHUB_OUTPUT
-
-      - name: Generate new version
-        id: newVer
-        shell: bash
-        run: |
-          git fetch --tags origin
-          currentVersion=$(git tag --list --sort=-version:refname "${baseVersion}.*" | head -n 1 || echo "${baseVersion}.0")
-
-          if [ -z "${currentVersion}" ]; then
-            newVersion="${baseVersion}.0"
-          else
-            runningNumber=$(echo ${currentVersion} | cut -f 3 -d '.')
-            newVersion="${baseVersion}.$((${runningNumber} + 1))"
-          fi
-          echo "The generated new version is: ${newVersion}"
-          echo "newVersion=${newVersion}" >> $GITHUB_OUTPUT
-        env:
-          baseVersion: ${{ steps.basemain.outputs.baseVersion }}
+      - name: Generate versions
+        id: version
+        uses: ./.github/actions/generate-version
 
       - name: Configure Maven for GitHub Packages
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
@@ -105,7 +82,7 @@ jobs:
         run: ./gradlew publish -PreleaseVersion=${targetVersion} --no-daemon
         env:
           GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
-          targetVersion: ${{ steps.newVer.outputs.newVersion }}
+          targetVersion: ${{ steps.version.outputs.new_version }}
 
       - name: Create tag
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
@@ -116,7 +93,7 @@ jobs:
             github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: 'refs/tags/${{ steps.newVer.outputs.newVersion }}',
+              ref: 'refs/tags/${{ steps.version.outputs.new_version }}',
               sha: context.sha
             })
 
@@ -126,7 +103,7 @@ jobs:
         with:
           github-token: ${{ github.token }}
           script: |
-            const tag = '${{ steps.newVer.outputs.newVersion }}';
+            const tag = '${{ steps.version.outputs.new_version }}';
 
             // Check if release already exists
             let releaseExists = false;
@@ -155,8 +132,8 @@ jobs:
                   '',
                   'Artifact tags published:',
                   '- latest',
-                  `- ${{ steps.basemain.outputs.mainVersion }}`,
-                  `- ${{ steps.basemain.outputs.baseVersion }}`,
+                  `- ${{ steps.version.outputs.main_version }}`,
+                  `- ${{ steps.version.outputs.base_version }}`,
                   `- ${tag}`
                 ].join('\n'),
                 draft: false,

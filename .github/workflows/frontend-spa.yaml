@@ -165,35 +165,11 @@ jobs:
           scope: ${{ inputs.use_scoped_registry && '@vempain' || '' }}
 
 
-      - name: Get main and base version
-        id: basemain
-        shell: bash
-        run: |
-          baseVersion=$(cat VERSION)
-          mainVersion=$(echo ${baseVersion} | cut -d '.' -f 1)
-          echo "baseVersion=${baseVersion}" >> $GITHUB_OUTPUT
-          echo "mainVersion=${mainVersion}" >> $GITHUB_OUTPUT
-
-      - name: Generate new version
-        id: newVer
-        shell: bash
-        run: |
-          git fetch --tags origin
-          prefix="${{ inputs.version_tag_prefix }}"
-          currentVersion=$(git tag --list --sort=-version:refname "${prefix}${baseVersion}.*" | head -n 1)
-
-          if [ -z "${currentVersion}" ]; then
-            newVersion="${baseVersion}.0"
-          else
-            # Strip any prefix before parsing
-            bare=$(echo "${currentVersion}" | sed "s/^${prefix}//")
-            runningNumber=$(echo ${bare} | cut -f 3 -d '.')
-            newVersion="${baseVersion}.$((${runningNumber} + 1))"
-          fi
-          echo "The generated new version is: ${newVersion}"
-          echo "newVersion=${newVersion}" >> $GITHUB_OUTPUT
-        env:
-          baseVersion: ${{ steps.basemain.outputs.baseVersion }}
+      - name: Generate versions
+        id: version
+        uses: ./.github/actions/generate-version
+        with:
+          tag_prefix: ${{ inputs.version_tag_prefix }}
 
       - name: Set new package version
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
@@ -201,7 +177,7 @@ jobs:
           echo "Setting version: ${newVersion}"
           yarn version --immediate ${newVersion}
         env:
-          newVersion: ${{ steps.newVer.outputs.newVersion }}
+          newVersion: ${{ steps.version.outputs.new_version }}
           VEMPAIN_ACTION_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
           NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
 
@@ -209,7 +185,7 @@ jobs:
         if: inputs.commit_version_bump && github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
-          newVersion="${{ steps.newVer.outputs.newVersion }}"
+          newVersion="${{ steps.version.outputs.new_version }}"
           prefix="${{ inputs.version_tag_prefix }}"
 
           git config user.name "github-actions[bot]"
@@ -255,17 +231,17 @@ jobs:
           docker image tag ${imgName}:latest ${imgName}:${newVersion}
           docker push --all-tags ${imgName}
         env:
-          mainVersion: ${{ steps.basemain.outputs.mainVersion }}
-          baseVersion: ${{ steps.basemain.outputs.baseVersion }}
-          newVersion: ${{ steps.newVer.outputs.newVersion }}
+          mainVersion: ${{ steps.version.outputs.main_version }}
+          baseVersion: ${{ steps.version.outputs.base_version }}
+          newVersion: ${{ steps.version.outputs.new_version }}
 
       - name: Build and push Docker image (version tag only)
         if: '!inputs.push_all_version_tags'
         shell: bash
         run: |
           imgName="${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')"
-          docker build . --tag ${imgName}:${{ steps.newVer.outputs.newVersion }}
-          docker push ${imgName}:${{ steps.newVer.outputs.newVersion }}
+          docker build . --tag ${imgName}:${{ steps.version.outputs.new_version }}
+          docker push ${imgName}:${{ steps.version.outputs.new_version }}
 
       - name: Create git tag
         if: '!inputs.commit_version_bump && github.event_name == ''push'' && (github.ref == ''refs/heads/main'' || startsWith(github.ref, ''refs/tags/''))'
@@ -276,7 +252,7 @@ jobs:
             github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: 'refs/tags/${{ inputs.version_tag_prefix }}${{ steps.newVer.outputs.newVersion }}',
+              ref: 'refs/tags/${{ inputs.version_tag_prefix }}${{ steps.version.outputs.new_version }}',
               sha: context.sha
             })
 
@@ -286,7 +262,7 @@ jobs:
         with:
           github-token: ${{ github.token }}
           script: |
-            const tag = '${{ inputs.version_tag_prefix }}${{ steps.newVer.outputs.newVersion }}';
+            const tag = '${{ inputs.version_tag_prefix }}${{ steps.version.outputs.new_version }}';
             const resp = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -297,8 +273,8 @@ jobs:
                 '',
                 'Docker tags pushed:',
                 ${{ inputs.push_all_version_tags }} ? '- latest' : '',
-                ${{ inputs.push_all_version_tags }} ? `- ${{ steps.basemain.outputs.mainVersion }}` : '',
-                ${{ inputs.push_all_version_tags }} ? `- ${{ steps.basemain.outputs.baseVersion }}` : '',
+                ${{ inputs.push_all_version_tags }} ? `- ${{ steps.version.outputs.main_version }}` : '',
+                ${{ inputs.push_all_version_tags }} ? `- ${{ steps.version.outputs.base_version }}` : '',
                 `- ${tag}`
               ].filter(Boolean).join('\n'),
               draft: false,

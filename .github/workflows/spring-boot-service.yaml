@@ -104,32 +104,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Get main and base version
-        id: basemain
-        shell: bash
-        run: |
-          baseVersion=$(cat VERSION)
-          mainVersion=$(echo ${baseVersion} | cut -d '.' -f 1)
-          echo "baseVersion=${baseVersion}" >> $GITHUB_OUTPUT
-          echo "mainVersion=${mainVersion}" >> $GITHUB_OUTPUT
-
-      - name: Generate new version
-        id: newVer
-        shell: bash
-        run: |
-          git fetch --tags origin
-          currentVersion=$(git tag --list --sort=-version:refname "${baseVersion}.*" | head -n 1 || echo "${baseVersion}.0")
-
-          if [ -z "${currentVersion}" ]; then
-            newVersion="${baseVersion}.0"
-          else
-            runningNumber=$(echo ${currentVersion} | cut -f 3 -d '.')
-            newVersion="${baseVersion}.$((${runningNumber} + 1))"
-          fi
-          echo "The generated new version is: ${newVersion}"
-          echo "newVersion=${newVersion}" >> $GITHUB_OUTPUT
-        env:
-          baseVersion: ${{ steps.basemain.outputs.baseVersion }}
+      - name: Generate versions
+        id: version
+        uses: ./.github/actions/generate-version
 
       - name: Set up Java temurin ${{ inputs.java_version }}
         uses: actions/setup-java@v5
@@ -147,13 +124,13 @@ jobs:
         shell: bash
         run: ./gradlew clean bootJar -Pversion=${newVersion}
         env:
-          newVersion: ${{ steps.newVer.outputs.newVersion }}
+          newVersion: ${{ steps.version.outputs.new_version }}
 
       - name: Publish API to GitHub Packages (Maven)
         if: inputs.publish_api && contains(github.event.head_commit.message, 'Merge pull request')
         run: ./gradlew :api:clean :api:publish -PreleaseVersion=${newVersion}
         env:
-          newVersion: ${{ steps.newVer.outputs.newVersion }}
+          newVersion: ${{ steps.version.outputs.new_version }}
 
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
@@ -174,9 +151,9 @@ jobs:
           docker image tag ${imgName}:latest ${imgName}:${newVersion}
           docker push --all-tags ${imgName}
         env:
-          mainVersion: ${{ steps.basemain.outputs.mainVersion }}
-          baseVersion: ${{ steps.basemain.outputs.baseVersion }}
-          newVersion: ${{ steps.newVer.outputs.newVersion }}
+          mainVersion: ${{ steps.version.outputs.main_version }}
+          baseVersion: ${{ steps.version.outputs.base_version }}
+          newVersion: ${{ steps.version.outputs.new_version }}
 
       - name: Create tag
         uses: actions/github-script@v9
@@ -186,7 +163,7 @@ jobs:
             github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: 'refs/tags/${{ steps.newVer.outputs.newVersion }}',
+              ref: 'refs/tags/${{ steps.version.outputs.new_version }}',
               sha: context.sha
             })
 
@@ -195,7 +172,7 @@ jobs:
         with:
           github-token: ${{ github.token }}
           script: |
-            const tag = '${{ steps.newVer.outputs.newVersion }}';
+            const tag = '${{ steps.version.outputs.new_version }}';
             const resp = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -206,8 +183,8 @@ jobs:
                 '',
                 'Docker tags pushed:',
                 '- latest',
-                `- ${{ steps.basemain.outputs.mainVersion }}`,
-                `- ${{ steps.basemain.outputs.baseVersion }}`,
+                `- ${{ steps.version.outputs.main_version }}`,
+                `- ${{ steps.version.outputs.base_version }}`,
                 `- ${tag}`
               ].join('\n'),
               draft: false,

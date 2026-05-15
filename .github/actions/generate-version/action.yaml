@@ -1,0 +1,61 @@
+name: Generate semantic version
+
+description: Compute base, major, and next patch version from VERSION + git tags.
+
+inputs:
+  version_file:
+    description: Path to VERSION file containing base major.minor value
+    required: false
+    default: VERSION
+  tag_prefix:
+    description: Optional tag prefix such as 'v'
+    required: false
+    default: ''
+
+outputs:
+  base_version:
+    description: Base major.minor version from VERSION file
+    value: ${{ steps.generate.outputs.baseVersion }}
+  main_version:
+    description: Major version component
+    value: ${{ steps.generate.outputs.mainVersion }}
+  new_version:
+    description: Next patch-level version (major.minor.patch)
+    value: ${{ steps.generate.outputs.newVersion }}
+
+runs:
+  using: composite
+  steps:
+    - name: Generate semantic version
+      id: generate
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        baseVersion="$(tr -d '[:space:]' < "${{ inputs.version_file }}")"
+        if [[ -z "${baseVersion}" ]]; then
+          echo "Version file '${{ inputs.version_file }}' is empty" >&2
+          exit 1
+        fi
+
+        mainVersion="$(echo "${baseVersion}" | cut -d '.' -f 1)"
+        prefix="${{ inputs.tag_prefix }}"
+
+        git fetch --tags origin
+        currentVersion="$(git tag --list --sort=-version:refname "${prefix}${baseVersion}.*" | head -n 1)"
+
+        if [[ -z "${currentVersion}" ]]; then
+          newVersion="${baseVersion}.0"
+        else
+          bare="${currentVersion#${prefix}}"
+          runningNumber="$(echo "${bare}" | cut -d '.' -f 3)"
+          if [[ -z "${runningNumber}" ]]; then
+            runningNumber=0
+          fi
+          newVersion="${baseVersion}.$((runningNumber + 1))"
+        fi
+
+        echo "baseVersion=${baseVersion}" >> "$GITHUB_OUTPUT"
+        echo "mainVersion=${mainVersion}" >> "$GITHUB_OUTPUT"
+        echo "newVersion=${newVersion}" >> "$GITHUB_OUTPUT"
+
