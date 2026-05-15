@@ -167,7 +167,7 @@ jobs:
 
       - name: Generate versions
         id: version
-        uses: ./.github/actions/generate-version
+        uses: Vempain/vempain-workflows/.github/actions/generate-version@main
         with:
           tag_prefix: ${{ inputs.version_tag_prefix }}
 
