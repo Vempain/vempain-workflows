@@ -39,14 +39,50 @@ on:
         description: 'Name for uploaded RPM artifact'
         type: string
         default: 'vempain-file-cli-rpm'
+      test_task:
+        description: 'Gradle task executed on non-main pushes (tests-only flow)'
+        type: string
+        default: 'clean test'
+      attach_to_release:
+        description: 'When true, try to upload RPMs to a GitHub Release and append links to release notes'
+        type: boolean
+        default: true
     secrets:
       VEMPAIN_ACTION_TOKEN:
         description: 'Optional token for private package resolution during Gradle build'
         required: false
 
 jobs:
+  test:
+    name: Run tests (non-main pushes)
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || github.token }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up Java temurin ${{ inputs.java_version }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Run tests with Gradle
+        run: ./gradlew ${{ inputs.test_task }}
+
   build-rpm:
     name: Build CLI RPM package
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -142,9 +178,55 @@ jobs:
           path: ${{ steps.discover.outputs.source_rpm_path }}
           if-no-files-found: error
 
+      - name: Create tag
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/${{ steps.version.outputs.new_version }}',
+              sha: context.sha
+            })
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const tag = '${{ steps.version.outputs.new_version }}';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const mavenPackageUrl = `https://github.com/orgs/${owner}/packages?repo_name=${repo}&ecosystem=maven`;
+
+            const resp = await github.rest.repos.createRelease({
+              owner,
+              repo,
+              tag_name: tag,
+              name: `Release ${tag}`,
+              body: [
+                `Automated release for ${tag}`,
+                '',
+                'Build artifacts:',
+                `- RPM workflow artifacts: https://github.com/${owner}/${repo}/actions/runs/${context.runId}`,
+                `- Maven API package list: ${mavenPackageUrl}`,
+                '',
+                `RPM package version: ${tag}`
+              ].join('\n'),
+              draft: false,
+              prerelease: false,
+              generate_release_notes: true
+            });
+            core.setOutput('release_id', String(resp.data.id));
+            core.info(`Release created: ${resp.data.html_url}`);
+
       - name: Attach RPMs to release and update release notes
+        if: inputs.attach_to_release
         uses: actions/github-script@v9
         env:
+          RELEASE_ID: ${{ steps.create_release.outputs.release_id }}
           RELEASE_TAG: ${{ steps.version.outputs.new_version }}
           BINARY_RPM_PATH: ${{ steps.discover.outputs.binary_rpm_path }}
           SOURCE_RPM_PATH: ${{ steps.discover.outputs.source_rpm_path }}
@@ -156,35 +238,29 @@ jobs:
 
             const owner = context.repo.owner;
             const repo = context.repo.repo;
+            const releaseId = Number.parseInt(process.env.RELEASE_ID || '', 10);
             const tag = process.env.RELEASE_TAG;
             const assetPaths = [process.env.BINARY_RPM_PATH, process.env.SOURCE_RPM_PATH].filter(Boolean);
 
-            const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-            let release;
-            for (let attempt = 1; attempt <= 30; attempt += 1) {
-              try {
-                const response = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
-                release = response.data;
-                break;
-              } catch (error) {
-                if (error.status !== 404) {
-                  throw error;
-                }
-                core.info(`Release ${tag} not found yet (attempt ${attempt}/30). Waiting 10s...`);
-                await delay(10000);
-              }
+            if (!Number.isFinite(releaseId) || releaseId <= 0) {
+              core.setFailed(`Create GitHub Release did not provide a valid release id (received: ${process.env.RELEASE_ID || 'empty'}).`);
+              return;
             }
 
-            if (!release) {
-              core.setFailed(`Release ${tag} was not found after waiting 5 minutes.`);
+            if (!tag) {
+              core.setFailed('Release attachment requested, but RELEASE_TAG is empty.');
+              return;
+            }
+
+            if (assetPaths.length === 0) {
+              core.setFailed('No RPM assets discovered for release attachment.');
               return;
             }
 
             const existingAssets = await github.paginate(github.rest.repos.listReleaseAssets, {
               owner,
               repo,
-              release_id: release.id,
+              release_id: releaseId,
               per_page: 100
             });
 
@@ -206,7 +282,7 @@ jobs:
               await github.rest.repos.uploadReleaseAsset({
                 owner,
                 repo,
-                release_id: release.id,
+                release_id: releaseId,
                 name: assetName,
                 data,
                 headers: {
@@ -221,6 +297,7 @@ jobs:
               });
             }
 
+            const release = await github.rest.repos.getRelease({ owner, repo, release_id: releaseId }).then((r) => r.data);
             let body = release.body || '';
             const additions = [];
 
@@ -240,7 +317,7 @@ jobs:
               await github.rest.repos.updateRelease({
                 owner,
                 repo,
-                release_id: release.id,
+                release_id: releaseId,
                 body
               });
             }
