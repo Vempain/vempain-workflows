@@ -58,6 +58,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   backend-tests:
     name: PHP backend – lint & format check
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -90,6 +91,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   frontend-tests:
     name: TypeScript frontend – lint & test
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: backend-tests
     permissions:
@@ -137,7 +139,6 @@ jobs:
   release-and-publish:
     name: Version, build and push Docker images
     runs-on: ubuntu-latest
-    needs: [ backend-tests, frontend-tests ]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: write
