@@ -111,6 +111,9 @@ runs:
       run: |
         set -euo pipefail
 
+        echo "DEBUG: PRIMARY_TOKEN length: ${#PRIMARY_TOKEN}"
+        echo "DEBUG: FALLBACK_TOKEN length: ${#FALLBACK_TOKEN}"
+
         effective_token="${PRIMARY_TOKEN}"
         if [ -z "${effective_token}" ]; then
           effective_token="${FALLBACK_TOKEN}"
@@ -121,6 +124,7 @@ runs:
           exit 1
         fi
 
+        echo "DEBUG: Using token of length: ${#effective_token}"
         echo "auth_token=${effective_token}" >> "$GITHUB_OUTPUT"
       env:
         PRIMARY_TOKEN: ${{ inputs.token }}
@@ -133,13 +137,22 @@ runs:
       run: |
         set -euo pipefail
         
+        echo "DEBUG: AUTH_TOKEN length: ${#AUTH_TOKEN}"
+        
         # Inject token into .yarnrc.yml by replacing empty token values
         if [ -f .yarnrc.yml ]; then
+          echo "DEBUG: Original .yarnrc.yml:"
+          cat .yarnrc.yml
+        
           # Use sed to replace empty auth tokens with actual token value
           # Use different quote style to allow variable expansion
           sed -i.bak "s/npmAuthToken: \"\"/npmAuthToken: \"${AUTH_TOKEN}\"/g" .yarnrc.yml
-          echo "Updated .yarnrc.yml:"
+        
+          echo "DEBUG: Updated .yarnrc.yml:"
           cat .yarnrc.yml
+        
+          echo "DEBUG: Checking for token in file:"
+          grep -c "npmAuthToken:" .yarnrc.yml || true
         fi
         
         # Use yarn config set for both file and in-memory configuration
@@ -163,6 +176,9 @@ runs:
         registry_host="${registry_host#http://}"
         registry_host="${registry_host%/}"
 
+        echo "DEBUG: npmrc_path: ${npmrc_path}"
+        echo "DEBUG: AUTH_TOKEN length: ${#AUTH_TOKEN}"
+
         {
           echo "@${{ inputs.scope_name }}:registry=${{ inputs.registry_url }}"
           echo "//${registry_host}/:_authToken=${AUTH_TOKEN}"
@@ -170,6 +186,9 @@ runs:
           echo "//${registry_host}/download/:_authToken=${AUTH_TOKEN}"
           echo "//${registry_host}/download/:always-auth=true"
         } >> "${npmrc_path}"
+        
+        echo "DEBUG: .npmrc content:"
+        cat "${npmrc_path}"
       env:
         AUTH_TOKEN: ${{ steps.resolve_token.outputs.auth_token }}
 
