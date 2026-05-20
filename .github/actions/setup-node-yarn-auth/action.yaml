@@ -133,21 +133,16 @@ runs:
       run: |
         set -euo pipefail
         
-        # Directly inject token into .yarnrc.yml using printf to avoid escaping issues
+        # Inject token into .yarnrc.yml by replacing empty token values
         if [ -f .yarnrc.yml ]; then
-          # Backup original
-          cp .yarnrc.yml .yarnrc.yml.bak
-        
-          # Use awk to replace empty npmAuthToken values with actual token
-          awk -v token="${AUTH_TOKEN}" '
-            /npmAuthToken:/ && /""/ {
-              gsub(/""/,  "\"" token "\"")
-            }
-            { print }
-          ' .yarnrc.yml.bak > .yarnrc.yml.new && mv .yarnrc.yml.new .yarnrc.yml
+          # Use sed to replace empty auth tokens with actual token value
+          # Use different quote style to allow variable expansion
+          sed -i.bak "s/npmAuthToken: \"\"/npmAuthToken: \"${AUTH_TOKEN}\"/g" .yarnrc.yml
+          echo "Updated .yarnrc.yml:"
+          cat .yarnrc.yml
         fi
-
-        # Also use yarn config set for redundancy (must use bracket notation for URLs with dots)
+        
+        # Use yarn config set for both file and in-memory configuration
         yarn config set npmAlwaysAuth true
         yarn config set npmAuthToken "${AUTH_TOKEN}"
         yarn config set npmScopes.${{ inputs.scope_name }}.npmRegistryServer "${{ inputs.registry_url }}"
