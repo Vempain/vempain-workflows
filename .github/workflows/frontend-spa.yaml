@@ -90,7 +90,7 @@ jobs:
           node_version: ${{ inputs.node_version }}
           use_corepack: ${{ inputs.use_corepack }}
           use_scoped_registry: ${{ inputs.use_scoped_registry }}
-          token: ${{ env.VEMPAIN_ACTION_TOKEN }}
+          token: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
           fallback_token: ${{ github.token }}
           use_cache: 'true'
           cache_package_manager: 'yarn'
@@ -99,6 +99,7 @@ jobs:
         env:
           VEMPAIN_ACTION_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
           NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
+          YARN_NPM_AUTH_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
           YARN_ENABLE_HARDENED_MODE: false
       - name: Build
         run: yarn build
@@ -143,7 +144,7 @@ jobs:
           node_version: ${{ inputs.node_version }}
           use_corepack: ${{ inputs.use_corepack }}
           use_scoped_registry: ${{ inputs.use_scoped_registry }}
-          token: ${{ env.VEMPAIN_ACTION_TOKEN }}
+          token: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
           fallback_token: ${{ github.token }}
           use_cache: 'true'
           cache_package_manager: 'yarn'
@@ -184,6 +185,7 @@ jobs:
         env:
           VEMPAIN_ACTION_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
           NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
+          YARN_NPM_AUTH_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
           YARN_ENABLE_HARDENED_MODE: false
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
