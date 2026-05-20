@@ -116,9 +116,15 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working_directory }}
       run: |
+        # Scope-level config for normal @scope package resolution
         yarn config set npmScopes.${{ inputs.scope_name }}.npmRegistryServer "${{ inputs.registry_url }}"
         yarn config set npmScopes.${{ inputs.scope_name }}.npmAlwaysAuth true
         yarn config set npmScopes.${{ inputs.scope_name }}.npmAuthToken "${AUTH_TOKEN}"
+
+        # Registry-level config is required when lockfile entries resolve via __archiveUrl
+        # (for example https://npm.pkg.github.com/download/@scope/pkg/...).
+        yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAlwaysAuth' true
+        yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAuthToken' "${AUTH_TOKEN}"
       env:
         AUTH_TOKEN: ${{ inputs.token }}
 
