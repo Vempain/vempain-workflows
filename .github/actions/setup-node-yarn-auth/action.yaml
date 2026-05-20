@@ -128,3 +128,21 @@ runs:
       env:
         AUTH_TOKEN: ${{ inputs.token }}
 
+    - name: Configure npmrc authentication fallback
+      if: inputs.use_scoped_registry == 'true'
+      shell: bash
+      run: |
+        npmrc_path="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
+        registry_host="${{ inputs.registry_url }}"
+        registry_host="${registry_host#https://}"
+        registry_host="${registry_host#http://}"
+        registry_host="${registry_host%/}"
+
+        {
+          echo "@${{ inputs.scope_name }}:registry=${{ inputs.registry_url }}"
+          echo "//${registry_host}/:_authToken=${AUTH_TOKEN}"
+          echo "//${registry_host}/:always-auth=true"
+        } >> "${npmrc_path}"
+      env:
+        AUTH_TOKEN: ${{ inputs.token }}
+
