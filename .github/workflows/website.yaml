@@ -98,24 +98,31 @@ jobs:
       contents: read
       packages: read
     env:
-      PACKAGE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
-      VEMPAIN_ACTION_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
-      NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
+      VEMPAIN_ACTION_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
+      NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Set up Node.js ${{ inputs.node_version }}
-        uses: actions/setup-node@v6
+      - name: Setup Node and Yarn auth
+        uses: Vempain/vempain-workflows/.github/actions/setup-node-yarn-auth@main
         with:
-          node-version: ${{ inputs.node_version }}
+          node_version: ${{ inputs.node_version }}
+          use_scoped_registry: 'true'
+          token: ${{ env.VEMPAIN_ACTION_TOKEN }}
+          working_directory: frontend
+          use_cache: 'true'
+          cache_package_manager: 'yarn'
+          cache_dependency_path: frontend/yarn.lock
 
       - name: Install frontend dependencies
         working-directory: frontend
         run: yarn install
         env:
           VEMPAIN_ACTION_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
+          YARN_ENABLE_HARDENED_MODE: false
 
       - name: Run frontend lint
         working-directory: frontend
@@ -144,18 +151,23 @@ jobs:
       contents: write
       packages: write
     env:
-      PACKAGE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
-      VEMPAIN_ACTION_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
-      NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
+      VEMPAIN_ACTION_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
+      NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Set up Node.js ${{ inputs.node_version }}
-        uses: actions/setup-node@v6
+      - name: Setup Node and Yarn auth
+        uses: Vempain/vempain-workflows/.github/actions/setup-node-yarn-auth@main
         with:
-          node-version: ${{ inputs.node_version }}
+          node_version: ${{ inputs.node_version }}
+          use_scoped_registry: 'true'
+          token: ${{ env.VEMPAIN_ACTION_TOKEN }}
+          working_directory: frontend
+          use_cache: 'true'
+          cache_package_manager: 'yarn'
+          cache_dependency_path: frontend/yarn.lock
 
 
       - name: Generate versions
@@ -189,6 +201,8 @@ jobs:
           yarn build:production
         env:
           VEMPAIN_ACTION_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
+          YARN_ENABLE_HARDENED_MODE: false
 
       - name: Log into registry ${{ env.REGISTRY }}
         uses: docker/login-action@v4
@@ -227,51 +241,47 @@ jobs:
           baseVersion: ${{ steps.version.outputs.base_version }}
           newVersion: ${{ steps.version.outputs.new_version }}
 
-      - name: Create git tag
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            github.rest.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: 'refs/tags/${{ steps.version.outputs.new_version }}',
-              sha: context.sha
-            })
+      - name: Compose release notes
+        id: release_notes
+        shell: bash
+        env:
+          TAG: ${{ steps.version.outputs.new_version }}
+          BACKEND_IMAGE: ${{ inputs.backend_image }}
+          FRONTEND_IMAGE: ${{ inputs.frontend_image }}
+          MAIN_VERSION: ${{ steps.version.outputs.main_version }}
+          BASE_VERSION: ${{ steps.version.outputs.base_version }}
+        run: |
+          backendPackageName="${BACKEND_IMAGE##*/}"
+          frontendPackageName="${FRONTEND_IMAGE##*/}"
+          backendPackageUrl="https://github.com/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/package/${backendPackageName}"
+          frontendPackageUrl="https://github.com/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/package/${frontendPackageName}"
 
-      - name: Create GitHub Release
-        uses: actions/github-script@v9
+          {
+            echo "body<<EOF"
+            echo "Automated release for ${TAG}"
+            echo
+            echo "Build artifacts:"
+            echo "- Backend Docker image package: ${backendPackageUrl}"
+            echo "- Frontend Docker image package: ${frontendPackageUrl}"
+            echo
+            echo "Docker tags pushed:"
+            echo "- latest"
+            echo "- ${MAIN_VERSION}"
+            echo "- ${BASE_VERSION}"
+            echo "- ${TAG}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        uses: Vempain/vempain-workflows/.github/actions/create-release@main
         with:
-          github-token: ${{ github.token }}
-          script: |
-            const tag = '${{ steps.version.outputs.new_version }}';
-            const backendImage = '${{ inputs.backend_image }}';
-            const frontendImage = '${{ inputs.frontend_image }}';
-            const backendPackageName = backendImage.split('/').pop();
-            const frontendPackageName = frontendImage.split('/').pop();
-            const backendPackageUrl = `https://github.com/orgs/${context.repo.owner}/packages/container/package/${backendPackageName}`;
-            const frontendPackageUrl = `https://github.com/orgs/${context.repo.owner}/packages/container/package/${frontendPackageName}`;
-            const resp = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: tag,
-              name: `Release ${tag}`,
-              body: [
-                `Automated release for ${tag}`,
-                '',
-                'Build artifacts:',
-                `- Backend Docker image package: ${backendPackageUrl}`,
-                `- Frontend Docker image package: ${frontendPackageUrl}`,
-                '',
-                'Docker tags pushed:',
-                '- latest',
-                `- ${{ steps.version.outputs.main_version }}`,
-                `- ${{ steps.version.outputs.base_version }}`,
-                `- ${tag}`
-              ].join('\n'),
-              draft: false,
-              prerelease: false,
-              generate_release_notes: true
-            });
-            core.info(`Release created: ${resp.data.html_url}`);
+          github_token: ${{ github.token }}
+          tag_name: ${{ steps.version.outputs.new_version }}
+          target_sha: ${{ github.sha }}
+          create_tag: 'true'
+          release_name: Release ${{ steps.version.outputs.new_version }}
+          release_body: ${{ steps.release_notes.outputs.body }}
+          draft: 'false'
+          prerelease: 'false'
+          generate_release_notes: 'true'
 

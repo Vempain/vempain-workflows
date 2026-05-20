@@ -1,0 +1,124 @@
+name: Setup Node and Yarn scoped auth
+
+description: Configure Node.js and Yarn authentication for private npm scopes.
+
+inputs:
+  node_version:
+    description: Node.js version
+    required: false
+    default: '24'
+  use_corepack:
+    description: Run corepack enable before Node setup
+    required: false
+    default: 'false'
+  use_scoped_registry:
+    description: Configure npm scope auth for private registry
+    required: false
+    default: 'false'
+  scope_name:
+    description: npm scope without @ prefix
+    required: false
+    default: 'vempain'
+  registry_url:
+    description: npm registry URL for the scope
+    required: false
+    default: 'https://npm.pkg.github.com'
+  token:
+    description: Auth token used for private package downloads
+    required: false
+    default: ''
+  working_directory:
+    description: Directory where Yarn config should be applied
+    required: false
+    default: '.'
+  use_cache:
+    description: Enable dependency cache in setup-node
+    required: false
+    default: 'false'
+  cache_package_manager:
+    description: Package manager for setup-node cache
+    required: false
+    default: 'yarn'
+  cache_dependency_path:
+    description: Lockfile path(s) for setup-node cache
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Enable Corepack
+      if: inputs.use_corepack == 'true'
+      shell: bash
+      run: corepack enable
+
+    - name: Set up Node.js (no cache, no scoped registry)
+      if: inputs.use_cache != 'true' && inputs.use_scoped_registry != 'true'
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node_version }}
+
+    - name: Set up Node.js (no cache, scoped registry)
+      if: inputs.use_cache != 'true' && inputs.use_scoped_registry == 'true'
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node_version }}
+        registry-url: ${{ inputs.registry_url }}
+        scope: ${{ format('@{0}', inputs.scope_name) }}
+
+    - name: Set up Node.js (cache, no scoped registry)
+      if: inputs.use_cache == 'true' && inputs.use_scoped_registry != 'true' && inputs.cache_dependency_path == ''
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: ${{ inputs.cache_package_manager }}
+
+    - name: Set up Node.js (cache, no scoped registry, lockfile path)
+      if: inputs.use_cache == 'true' && inputs.use_scoped_registry != 'true' && inputs.cache_dependency_path != ''
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: ${{ inputs.cache_package_manager }}
+        cache-dependency-path: ${{ inputs.cache_dependency_path }}
+
+    - name: Set up Node.js (cache, scoped registry)
+      if: inputs.use_cache == 'true' && inputs.use_scoped_registry == 'true' && inputs.cache_dependency_path == ''
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: ${{ inputs.cache_package_manager }}
+        registry-url: ${{ inputs.registry_url }}
+        scope: ${{ format('@{0}', inputs.scope_name) }}
+
+    - name: Set up Node.js (cache, scoped registry, lockfile path)
+      if: inputs.use_cache == 'true' && inputs.use_scoped_registry == 'true' && inputs.cache_dependency_path != ''
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: ${{ inputs.cache_package_manager }}
+        cache-dependency-path: ${{ inputs.cache_dependency_path }}
+        registry-url: ${{ inputs.registry_url }}
+        scope: ${{ format('@{0}', inputs.scope_name) }}
+
+    - name: Validate package token
+      if: inputs.use_scoped_registry == 'true'
+      shell: bash
+      run: |
+        if [ -z "${AUTH_TOKEN}" ]; then
+          echo "::error::VEMPAIN_ACTION_TOKEN is required to download private @${{ inputs.scope_name }} packages from ${{ inputs.registry_url }}"
+          exit 1
+        fi
+      env:
+        AUTH_TOKEN: ${{ inputs.token }}
+
+    - name: Configure Yarn npm scope authentication
+      if: inputs.use_scoped_registry == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+      run: |
+        yarn config set npmScopes.${{ inputs.scope_name }}.npmRegistryServer "${{ inputs.registry_url }}"
+        yarn config set npmScopes.${{ inputs.scope_name }}.npmAlwaysAuth true
+        yarn config set npmScopes.${{ inputs.scope_name }}.npmAuthToken "${AUTH_TOKEN}"
+      env:
+        AUTH_TOKEN: ${{ inputs.token }}
+

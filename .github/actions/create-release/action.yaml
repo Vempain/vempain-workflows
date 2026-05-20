@@ -1,0 +1,80 @@
+name: Create git tag and GitHub release
+
+description: Optionally create a git tag and then create a GitHub release for the current repository.
+
+inputs:
+  github_token:
+    description: Token for GitHub API calls
+    required: true
+  tag_name:
+    description: Tag name to create and release
+    required: true
+  target_sha:
+    description: Commit SHA the tag points to
+    required: false
+    default: ''
+  create_tag:
+    description: Whether to create the git tag before creating release
+    required: false
+    default: 'true'
+  release_name:
+    description: Release display name
+    required: true
+  release_body:
+    description: Release notes body
+    required: true
+  draft:
+    description: Create release as draft
+    required: false
+    default: 'false'
+  prerelease:
+    description: Mark release as prerelease
+    required: false
+    default: 'false'
+  generate_release_notes:
+    description: Ask GitHub to generate release notes
+    required: false
+    default: 'true'
+
+outputs:
+  release_url:
+    description: URL of the created release
+    value: ${{ steps.create_release.outputs.release_url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Create git tag
+      if: inputs.create_tag == 'true'
+      uses: actions/github-script@v9
+      with:
+        github-token: ${{ inputs.github_token }}
+        script: |
+          const tag = '${{ inputs.tag_name }}';
+          const sha = '${{ inputs.target_sha }}' || context.sha;
+          await github.rest.git.createRef({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: `refs/tags/${tag}`,
+            sha
+          });
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/github-script@v9
+      with:
+        github-token: ${{ inputs.github_token }}
+        script: |
+          const response = await github.rest.repos.createRelease({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            tag_name: '${{ inputs.tag_name }}',
+            name: '${{ inputs.release_name }}',
+            body: `${{ inputs.release_body }}`,
+            draft: ${{ inputs.draft == 'true' }},
+            prerelease: ${{ inputs.prerelease == 'true' }},
+            generate_release_notes: ${{ inputs.generate_release_notes == 'true' }}
+          });
+          core.setOutput('release_url', response.data.html_url);
+          core.info(`Release created: ${response.data.html_url}`);
+
