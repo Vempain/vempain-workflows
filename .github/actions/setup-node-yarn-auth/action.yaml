@@ -147,14 +147,14 @@ runs:
           ' .yarnrc.yml.bak > .yarnrc.yml.new && mv .yarnrc.yml.new .yarnrc.yml
         fi
 
-        # Also use yarn config set for redundancy
+        # Also use yarn config set for redundancy (must use bracket notation for URLs with dots)
         yarn config set npmAlwaysAuth true
         yarn config set npmAuthToken "${AUTH_TOKEN}"
         yarn config set npmScopes.${{ inputs.scope_name }}.npmRegistryServer "${{ inputs.registry_url }}"
         yarn config set npmScopes.${{ inputs.scope_name }}.npmAlwaysAuth true
         yarn config set npmScopes.${{ inputs.scope_name }}.npmAuthToken "${AUTH_TOKEN}"
-        yarn config set npmRegistries.${{ inputs.registry_url }}.npmAlwaysAuth true
-        yarn config set npmRegistries.${{ inputs.registry_url }}.npmAuthToken "${AUTH_TOKEN}"
+        yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAlwaysAuth' true
+        yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAuthToken' "${AUTH_TOKEN}"
       env:
         AUTH_TOKEN: ${{ steps.resolve_token.outputs.auth_token }}
 
