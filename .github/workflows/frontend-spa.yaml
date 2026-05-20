@@ -1,5 +1,4 @@
 name: Frontend SPA CI
-
 # Reusable workflow for Vempain TypeScript/JS single-page-application
 # repositories that build a Docker image.
 #
@@ -17,7 +16,6 @@ name: Frontend SPA CI
 # │                          the patch-level version tag (false)            │
 # │  version_tag_prefix   – prefix for git tags, e.g. '' or 'v'            │
 # └─────────────────────────────────────────────────────────────────────────┘
-
 on:
   workflow_call:
     inputs:
@@ -65,14 +63,11 @@ on:
       VEMPAIN_ACTION_TOKEN:
         description: 'Organisation token used for private @vempain packages and GitHub API calls'
         required: false
-
 env:
   REGISTRY: ghcr.io
   REGISTRY_NAMESPACE: vempain
   IMAGE_NAME: ${{ github.repository }}
-
 concurrency: build
-
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
   test:
@@ -85,15 +80,12 @@ jobs:
     env:
       VEMPAIN_ACTION_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
       NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
-
     steps:
       - name: Enable Corepack
         if: inputs.use_corepack
         run: corepack enable
-
       - name: Check out code
         uses: actions/checkout@v6
-
       - name: Set up Node.js ${{ inputs.node_version }}
         uses: actions/setup-node@v6
         with:
@@ -101,49 +93,71 @@ jobs:
           cache: 'yarn'
           registry-url: ${{ inputs.use_scoped_registry && 'https://npm.pkg.github.com' || '' }}
           scope: ${{ inputs.use_scoped_registry && '@vempain' || '' }}
-
       - name: Configure Yarn npm scope authentication
         if: inputs.use_scoped_registry
         shell: bash
         run: |
+          python3 << 'PYEOF'
+          import re
           # Ensure .yarnrc.yml has npm scope configuration for GitHub registry
           # This is required for Yarn 4 to authenticate against private npm packages
-          if ! grep -q '@vempain' .yarnrc.yml 2>/dev/null; then
-            cat >> .yarnrc.yml << 'YARNEOF'
-          
-          npmScopes:
+          # Check if .yarnrc.yml exists
+          try:
+              with open('.yarnrc.yml', 'r') as f:
+                  content = f.read()
+          except FileNotFoundError:
+              # Create minimal .yarnrc.yml with @vempain scope
+              content = '''npmScopes:
             "@vempain":
               npmRegistry: "https://npm.pkg.github.com"
               npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"
-          YARNEOF
-          fi
-
+          '''
+              with open('.yarnrc.yml', 'w') as f:
+                  f.write(content)
+              exit(0)
+          # Check if @vempain scope already configured
+          if '"@vempain"' in content:
+              exit(0)
+          # npmScopes section exists but missing @vempain scope
+          if 'npmScopes:' in content:
+              # Insert @vempain scope into existing npmScopes section
+              pattern = r'(npmScopes:\n)((?:  [\w"@-]+:.*\n)*)'
+              replacement = r'\1  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\2'
+              content = re.sub(pattern, replacement, content, count=1)
+          else:
+              # No npmScopes section exists, append new section before yarnPath if present
+              if 'yarnPath:' in content:
+                  pattern = r'(yarnPath:)'
+                  replacement = r'npmScopes:\n  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\n\1'
+                  content = re.sub(pattern, replacement, content, count=1)
+              else:
+                  # Just append to the end
+                  content += '\nnpmScopes:\n  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n'
+          with open('.yarnrc.yml', 'w') as f:
+              f.write(content)
+          PYEOF
       - name: Install dependencies
         run: yarn install ${{ inputs.use_immutable_install && '--immutable' || '' }}
         env:
           VEMPAIN_ACTION_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
           NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
           YARN_ENABLE_HARDENED_MODE: false
-
       - name: Build
         run: yarn build
         env:
           VEMPAIN_ACTION_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
           NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
-
       - name: Run tests
         run: yarn test ${{ inputs.test_extra_flags }}
         env:
           VEMPAIN_ACTION_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
           NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
-
       - name: Run coverage
         if: inputs.run_coverage
         run: yarn test:coverage
         env:
           VEMPAIN_ACTION_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
           NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
-
   # ──────────────────────────────────────────────────────────────────────────
   version-and-upload:
     name: Version, build and push Docker image
@@ -158,18 +172,15 @@ jobs:
     env:
       VEMPAIN_ACTION_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
       NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
-
     steps:
       - name: Enable Corepack
         if: inputs.use_corepack
         run: corepack enable
-
       - name: Check out code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ github.token }}
-
       - name: Set up Node.js ${{ inputs.node_version }}
         uses: actions/setup-node@v6
         with:
@@ -177,14 +188,11 @@ jobs:
           cache: 'yarn'
           registry-url: ${{ inputs.use_scoped_registry && 'https://npm.pkg.github.com' || '' }}
           scope: ${{ inputs.use_scoped_registry && '@vempain' || '' }}
-
-
       - name: Generate versions
         id: version
         uses: Vempain/vempain-workflows/.github/actions/generate-version@main
         with:
           tag_prefix: ${{ inputs.version_tag_prefix }}
-
       - name: Set new package version
         run: |
           echo "Setting version: ${newVersion}"
@@ -193,20 +201,16 @@ jobs:
           newVersion: ${{ steps.version.outputs.new_version }}
           VEMPAIN_ACTION_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
           NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
-
       - name: Commit and push version bump
         if: inputs.commit_version_bump && github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
           newVersion="${{ steps.version.outputs.new_version }}"
           prefix="${{ inputs.version_tag_prefix }}"
-
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
           git add package.json
           [ -f yarn.lock ] && git add yarn.lock
-
           if git diff --cached --quiet; then
             echo "No version changes to commit."
           else
@@ -214,23 +218,49 @@ jobs:
             git tag "${prefix}${newVersion}"
             git push --atomic origin HEAD "refs/tags/${prefix}${newVersion}"
           fi
-
       - name: Configure Yarn npm scope authentication
         if: inputs.use_scoped_registry
         shell: bash
         run: |
+          python3 << 'PYEOF'
+          import re
           # Ensure .yarnrc.yml has npm scope configuration for GitHub registry
           # This is required for Yarn 4 to authenticate against private npm packages
-          if ! grep -q '@vempain' .yarnrc.yml 2>/dev/null; then
-            cat >> .yarnrc.yml << 'YARNEOF'
-          
-          npmScopes:
+          # Check if .yarnrc.yml exists
+          try:
+              with open('.yarnrc.yml', 'r') as f:
+                  content = f.read()
+          except FileNotFoundError:
+              # Create minimal .yarnrc.yml with @vempain scope
+              content = '''npmScopes:
             "@vempain":
               npmRegistry: "https://npm.pkg.github.com"
               npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"
-          YARNEOF
-          fi
-
+          '''
+              with open('.yarnrc.yml', 'w') as f:
+                  f.write(content)
+              exit(0)
+          # Check if @vempain scope already configured
+          if '"@vempain"' in content:
+              exit(0)
+          # npmScopes section exists but missing @vempain scope
+          if 'npmScopes:' in content:
+              # Insert @vempain scope into existing npmScopes section
+              pattern = r'(npmScopes:\n)((?:  [\w"@-]+:.*\n)*)'
+              replacement = r'\1  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\2'
+              content = re.sub(pattern, replacement, content, count=1)
+          else:
+              # No npmScopes section exists, append new section before yarnPath if present
+              if 'yarnPath:' in content:
+                  pattern = r'(yarnPath:)'
+                  replacement = r'npmScopes:\n  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\n\1'
+                  content = re.sub(pattern, replacement, content, count=1)
+              else:
+                  # Just append to the end
+                  content += '\nnpmScopes:\n  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n'
+          with open('.yarnrc.yml', 'w') as f:
+              f.write(content)
+          PYEOF
       - name: Build production package
         run: |
           yarn install ${{ inputs.use_immutable_install && '--immutable' || '' }}
@@ -239,7 +269,6 @@ jobs:
           VEMPAIN_ACTION_TOKEN: ${{ env.VEMPAIN_ACTION_TOKEN }}
           NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
           YARN_ENABLE_HARDENED_MODE: false
-
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v4
@@ -247,7 +276,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build and push Docker image (all version tags)
         if: inputs.push_all_version_tags
         shell: bash
@@ -263,7 +291,6 @@ jobs:
           mainVersion: ${{ steps.version.outputs.main_version }}
           baseVersion: ${{ steps.version.outputs.base_version }}
           newVersion: ${{ steps.version.outputs.new_version }}
-
       - name: Build and push Docker image (version tag only)
         if: '!inputs.push_all_version_tags'
         shell: bash
@@ -271,7 +298,6 @@ jobs:
           imgName="${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')"
           docker build . --tag ${imgName}:${{ steps.version.outputs.new_version }}
           docker push ${imgName}:${{ steps.version.outputs.new_version }}
-
       - name: Create git tag
         if: '!inputs.commit_version_bump'
         uses: actions/github-script@v9
@@ -284,7 +310,6 @@ jobs:
               ref: 'refs/tags/${{ inputs.version_tag_prefix }}${{ steps.version.outputs.new_version }}',
               sha: context.sha
             })
-
       - name: Create GitHub Release
         uses: actions/github-script@v9
         with:
@@ -314,4 +339,3 @@ jobs:
               generate_release_notes: true
             });
             core.info(`Release created: ${resp.data.html_url}`);
-
