@@ -136,9 +136,9 @@ runs:
       working-directory: ${{ inputs.working_directory }}
       run: |
         set -euo pipefail
-        
+
         echo "DEBUG: AUTH_TOKEN length: ${#AUTH_TOKEN}"
-        
+
         # Inject token into .yarnrc.yml for both placeholder and empty token forms.
         if [ -f .yarnrc.yml ]; then
           echo "DEBUG: Original .yarnrc.yml:"
@@ -148,14 +148,14 @@ runs:
             -e "s#npmAuthToken: \"\${VEMPAIN_ACTION_TOKEN-}\"#npmAuthToken: \"${AUTH_TOKEN}\"#g" \
             -e "s#npmAuthToken: \"\"#npmAuthToken: \"${AUTH_TOKEN}\"#g" \
             .yarnrc.yml
-        
+
           echo "DEBUG: Updated .yarnrc.yml:"
           cat .yarnrc.yml
-        
+
           echo "DEBUG: Checking for token in file:"
           grep -c "npmAuthToken:" .yarnrc.yml || true
         fi
-        
+
         # Use yarn config set for both file and in-memory configuration
         yarn config set npmAlwaysAuth true
         yarn config set npmAuthToken "${AUTH_TOKEN}"

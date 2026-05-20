@@ -105,17 +105,21 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Setup Node and Yarn auth
-        uses: Vempain/vempain-workflows/.github/actions/setup-node-yarn-auth@main
+      - name: Set up Node.js ${{ inputs.node_version }}
+        uses: actions/setup-node@v6
         with:
-          node_version: ${{ inputs.node_version }}
-          use_scoped_registry: 'true'
-          token: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
-          fallback_token: ${{ github.token }}
-          working_directory: frontend
-          use_cache: 'true'
-          cache_package_manager: 'yarn'
-          cache_dependency_path: frontend/yarn.lock
+          node-version: ${{ inputs.node_version }}
+          cache-dependency-path: frontend/yarn.lock
+          cache: 'yarn'
+
+      - name: Validate package token
+        shell: bash
+        run: |
+          if [ -z "${VEMPAIN_ACTION_TOKEN}" ]; then
+            echo "::error::VEMPAIN_ACTION_TOKEN is required for private @vempain packages"
+            exit 1
+          fi
+          echo "VEMPAIN_ACTION_TOKEN length: ${#VEMPAIN_ACTION_TOKEN}"
 
       - name: Install frontend dependencies
         working-directory: frontend
@@ -160,17 +164,21 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Setup Node and Yarn auth
-        uses: Vempain/vempain-workflows/.github/actions/setup-node-yarn-auth@main
+      - name: Set up Node.js ${{ inputs.node_version }}
+        uses: actions/setup-node@v6
         with:
-          node_version: ${{ inputs.node_version }}
-          use_scoped_registry: 'true'
-          token: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
-          fallback_token: ${{ github.token }}
-          working_directory: frontend
-          use_cache: 'true'
-          cache_package_manager: 'yarn'
-          cache_dependency_path: frontend/yarn.lock
+          node-version: ${{ inputs.node_version }}
+          cache-dependency-path: frontend/yarn.lock
+          cache: 'yarn'
+
+      - name: Validate package token
+        shell: bash
+        run: |
+          if [ -z "${VEMPAIN_ACTION_TOKEN}" ]; then
+            echo "::error::VEMPAIN_ACTION_TOKEN is required for private @vempain packages"
+            exit 1
+          fi
+          echo "VEMPAIN_ACTION_TOKEN length: ${#VEMPAIN_ACTION_TOKEN}"
 
 
       - name: Generate versions
