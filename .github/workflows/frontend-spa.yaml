@@ -109,7 +109,7 @@ jobs:
               # Create minimal .yarnrc.yml with @vempain scope
               content = '''npmScopes:
             "@vempain":
-              npmRegistry: "https://npm.pkg.github.com"
+              npmRegistryServer: "https://npm.pkg.github.com"
               npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"
           '''
               with open('.yarnrc.yml', 'w') as f:
@@ -122,17 +122,17 @@ jobs:
           if 'npmScopes:' in content:
               # Insert @vempain scope into existing npmScopes section
               pattern = r'(npmScopes:\n)((?:  [\w"@-]+:.*\n)*)'
-              replacement = r'\1  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\2'
+              replacement = r'\1  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\2'
               content = re.sub(pattern, replacement, content, count=1)
           else:
               # No npmScopes section exists, append new section before yarnPath if present
               if 'yarnPath:' in content:
                   pattern = r'(yarnPath:)'
-                  replacement = r'npmScopes:\n  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\n\1'
+                  replacement = r'npmScopes:\n  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\n\1'
                   content = re.sub(pattern, replacement, content, count=1)
               else:
                   # Just append to the end
-                  content += '\nnpmScopes:\n  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n'
+                  content += '\nnpmScopes:\n  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n'
           with open('.yarnrc.yml', 'w') as f:
               f.write(content)
           PYEOF
@@ -234,7 +234,7 @@ jobs:
               # Create minimal .yarnrc.yml with @vempain scope
               content = '''npmScopes:
             "@vempain":
-              npmRegistry: "https://npm.pkg.github.com"
+              npmRegistryServer: "https://npm.pkg.github.com"
               npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"
           '''
               with open('.yarnrc.yml', 'w') as f:
@@ -247,17 +247,17 @@ jobs:
           if 'npmScopes:' in content:
               # Insert @vempain scope into existing npmScopes section
               pattern = r'(npmScopes:\n)((?:  [\w"@-]+:.*\n)*)'
-              replacement = r'\1  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\2'
+              replacement = r'\1  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\2'
               content = re.sub(pattern, replacement, content, count=1)
           else:
               # No npmScopes section exists, append new section before yarnPath if present
               if 'yarnPath:' in content:
                   pattern = r'(yarnPath:)'
-                  replacement = r'npmScopes:\n  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\n\1'
+                  replacement = r'npmScopes:\n  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\n\1'
                   content = re.sub(pattern, replacement, content, count=1)
               else:
                   # Just append to the end
-                  content += '\nnpmScopes:\n  "@vempain":\n    npmRegistry: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n'
+                  content += '\nnpmScopes:\n  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n'
           with open('.yarnrc.yml', 'w') as f:
               f.write(content)
           PYEOF
