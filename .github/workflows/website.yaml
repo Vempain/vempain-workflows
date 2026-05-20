@@ -111,6 +111,7 @@ jobs:
           node_version: ${{ inputs.node_version }}
           use_scoped_registry: 'true'
           token: ${{ env.VEMPAIN_ACTION_TOKEN }}
+          fallback_token: ${{ github.token }}
           working_directory: frontend
           use_cache: 'true'
           cache_package_manager: 'yarn'
@@ -164,6 +165,7 @@ jobs:
           node_version: ${{ inputs.node_version }}
           use_scoped_registry: 'true'
           token: ${{ env.VEMPAIN_ACTION_TOKEN }}
+          fallback_token: ${{ github.token }}
           working_directory: frontend
           use_cache: 'true'
           cache_package_manager: 'yarn'
