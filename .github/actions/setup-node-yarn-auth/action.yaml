@@ -109,8 +109,36 @@ runs:
       if: inputs.use_scoped_registry == 'true'
       shell: bash
       run: |
-        effective_token="${PRIMARY_TOKEN}"
-        if [ -z "${effective_token}" ]; then
+        set -euo pipefail
+
+        validate_token() {
+          local token="$1"
+          [ -n "${token}" ] || return 1
+          local npmrc_file
+          local registry_host
+          npmrc_file="$(mktemp)"
+          registry_host="${REGISTRY_URL#https://}"
+          registry_host="${registry_host#http://}"
+          registry_host="${registry_host%/}"
+
+          {
+            echo "@${SCOPE_NAME}:registry=${REGISTRY_URL}"
+            echo "//${registry_host}/:_authToken=${token}"
+            echo "//${registry_host}/:always-auth=true"
+          } > "${npmrc_file}"
+
+          npm --userconfig "${npmrc_file}" whoami --registry "${REGISTRY_URL}" >/dev/null 2>&1
+          local result=$?
+          rm -f "${npmrc_file}"
+          return ${result}
+        }
+
+        effective_token=""
+
+        if validate_token "${PRIMARY_TOKEN}"; then
+          effective_token="${PRIMARY_TOKEN}"
+        elif validate_token "${FALLBACK_TOKEN}"; then
+          echo "::warning::Primary package token failed registry auth validation, falling back to github.token"
           effective_token="${FALLBACK_TOKEN}"
         fi
 
@@ -123,6 +151,8 @@ runs:
       env:
         PRIMARY_TOKEN: ${{ inputs.token }}
         FALLBACK_TOKEN: ${{ inputs.fallback_token }}
+        REGISTRY_URL: ${{ inputs.registry_url }}
+        SCOPE_NAME: ${{ inputs.scope_name }}
 
     - name: Configure Yarn npm scope authentication
       if: inputs.use_scoped_registry == 'true'
