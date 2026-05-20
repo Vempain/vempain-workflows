@@ -140,6 +140,10 @@ runs:
         # (for example https://npm.pkg.github.com/download/@scope/pkg/...).
         yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAlwaysAuth' true
         yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAuthToken' "${AUTH_TOKEN}"
+
+        # Some Yarn fetches use the /download path as the effective registry URL.
+        yarn config set 'npmRegistries["${{ inputs.registry_url }}/download"].npmAlwaysAuth' true
+        yarn config set 'npmRegistries["${{ inputs.registry_url }}/download"].npmAuthToken' "${AUTH_TOKEN}"
       env:
         AUTH_TOKEN: ${{ steps.resolve_token.outputs.auth_token }}
 
@@ -157,6 +161,8 @@ runs:
           echo "@${{ inputs.scope_name }}:registry=${{ inputs.registry_url }}"
           echo "//${registry_host}/:_authToken=${AUTH_TOKEN}"
           echo "//${registry_host}/:always-auth=true"
+          echo "//${registry_host}/download/:_authToken=${AUTH_TOKEN}"
+          echo "//${registry_host}/download/:always-auth=true"
         } >> "${npmrc_path}"
       env:
         AUTH_TOKEN: ${{ steps.resolve_token.outputs.auth_token }}
