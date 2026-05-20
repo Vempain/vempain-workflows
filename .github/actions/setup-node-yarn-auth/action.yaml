@@ -139,14 +139,15 @@ runs:
         
         echo "DEBUG: AUTH_TOKEN length: ${#AUTH_TOKEN}"
         
-        # Inject token into .yarnrc.yml by replacing empty token values
+        # Inject token into .yarnrc.yml for both placeholder and empty token forms.
         if [ -f .yarnrc.yml ]; then
           echo "DEBUG: Original .yarnrc.yml:"
           cat .yarnrc.yml
-        
-          # Use sed to replace empty auth tokens with actual token value
-          # Use different quote style to allow variable expansion
-          sed -i.bak "s/npmAuthToken: \"\"/npmAuthToken: \"${AUTH_TOKEN}\"/g" .yarnrc.yml
+
+          sed -i.bak \
+            -e "s#npmAuthToken: \"\${VEMPAIN_ACTION_TOKEN-}\"#npmAuthToken: \"${AUTH_TOKEN}\"#g" \
+            -e "s#npmAuthToken: \"\"#npmAuthToken: \"${AUTH_TOKEN}\"#g" \
+            .yarnrc.yml
         
           echo "DEBUG: Updated .yarnrc.yml:"
           cat .yarnrc.yml
@@ -179,14 +180,14 @@ runs:
         echo "DEBUG: npmrc_path: ${npmrc_path}"
         echo "DEBUG: AUTH_TOKEN length: ${#AUTH_TOKEN}"
 
-        {
-          echo "@${{ inputs.scope_name }}:registry=${{ inputs.registry_url }}"
-          echo "//${registry_host}/:_authToken=${AUTH_TOKEN}"
-          echo "//${registry_host}/:always-auth=true"
-          echo "//${registry_host}/download/:_authToken=${AUTH_TOKEN}"
-          echo "//${registry_host}/download/:always-auth=true"
-        } >> "${npmrc_path}"
-        
+        # Overwrite file to avoid malformed concatenation with setup-node generated lines.
+        : > "${npmrc_path}"
+        printf '%s\n' "@${{ inputs.scope_name }}:registry=${{ inputs.registry_url }}" >> "${npmrc_path}"
+        printf '%s\n' "//${registry_host}/:_authToken=${AUTH_TOKEN}" >> "${npmrc_path}"
+        printf '%s\n' "//${registry_host}/:always-auth=true" >> "${npmrc_path}"
+        printf '%s\n' "//${registry_host}/download/:_authToken=${AUTH_TOKEN}" >> "${npmrc_path}"
+        printf '%s\n' "//${registry_host}/download/:always-auth=true" >> "${npmrc_path}"
+
         echo "DEBUG: .npmrc content:"
         cat "${npmrc_path}"
       env:
