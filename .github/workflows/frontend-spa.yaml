@@ -91,6 +91,7 @@ jobs:
           use_corepack: ${{ inputs.use_corepack }}
           use_scoped_registry: ${{ inputs.use_scoped_registry }}
           token: ${{ env.VEMPAIN_ACTION_TOKEN }}
+          fallback_token: ${{ github.token }}
           use_cache: 'true'
           cache_package_manager: 'yarn'
       - name: Install dependencies
@@ -143,6 +144,7 @@ jobs:
           use_corepack: ${{ inputs.use_corepack }}
           use_scoped_registry: ${{ inputs.use_scoped_registry }}
           token: ${{ env.VEMPAIN_ACTION_TOKEN }}
+          fallback_token: ${{ github.token }}
           use_cache: 'true'
           cache_package_manager: 'yarn'
       - name: Generate versions

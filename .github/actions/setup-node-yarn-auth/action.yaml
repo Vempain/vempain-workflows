@@ -27,6 +27,10 @@ inputs:
     description: Auth token used for private package downloads
     required: false
     default: ''
+  fallback_token:
+    description: Optional fallback token when primary token is unavailable in this context
+    required: false
+    default: ''
   working_directory:
     description: Directory where Yarn config should be applied
     required: false
@@ -100,16 +104,25 @@ runs:
         registry-url: ${{ inputs.registry_url }}
         scope: ${{ format('@{0}', inputs.scope_name) }}
 
-    - name: Validate package token
+    - name: Resolve package token
+      id: resolve_token
       if: inputs.use_scoped_registry == 'true'
       shell: bash
       run: |
-        if [ -z "${AUTH_TOKEN}" ]; then
-          echo "::error::VEMPAIN_ACTION_TOKEN is required to download private @${{ inputs.scope_name }} packages from ${{ inputs.registry_url }}"
+        effective_token="${PRIMARY_TOKEN}"
+        if [ -z "${effective_token}" ]; then
+          effective_token="${FALLBACK_TOKEN}"
+        fi
+
+        if [ -z "${effective_token}" ]; then
+          echo "::error::A package token is required to download private @${{ inputs.scope_name }} packages from ${{ inputs.registry_url }}"
           exit 1
         fi
+
+        echo "auth_token=${effective_token}" >> "$GITHUB_OUTPUT"
       env:
-        AUTH_TOKEN: ${{ inputs.token }}
+        PRIMARY_TOKEN: ${{ inputs.token }}
+        FALLBACK_TOKEN: ${{ inputs.fallback_token }}
 
     - name: Configure Yarn npm scope authentication
       if: inputs.use_scoped_registry == 'true'
@@ -126,7 +139,7 @@ runs:
         yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAlwaysAuth' true
         yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAuthToken' "${AUTH_TOKEN}"
       env:
-        AUTH_TOKEN: ${{ inputs.token }}
+        AUTH_TOKEN: ${{ steps.resolve_token.outputs.auth_token }}
 
     - name: Configure npmrc authentication fallback
       if: inputs.use_scoped_registry == 'true'
@@ -144,5 +157,5 @@ runs:
           echo "//${registry_host}/:always-auth=true"
         } >> "${npmrc_path}"
       env:
-        AUTH_TOKEN: ${{ inputs.token }}
+        AUTH_TOKEN: ${{ steps.resolve_token.outputs.auth_token }}
 
