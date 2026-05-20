@@ -131,23 +131,30 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working_directory }}
       run: |
-        # Global npm auth fallback used when request URL matching is ambiguous.
+        set -euo pipefail
+        
+        # Directly inject token into .yarnrc.yml using printf to avoid escaping issues
+        if [ -f .yarnrc.yml ]; then
+          # Backup original
+          cp .yarnrc.yml .yarnrc.yml.bak
+        
+          # Use awk to replace empty npmAuthToken values with actual token
+          awk -v token="${AUTH_TOKEN}" '
+            /npmAuthToken:/ && /""/ {
+              gsub(/""/,  "\"" token "\"")
+            }
+            { print }
+          ' .yarnrc.yml.bak > .yarnrc.yml.new && mv .yarnrc.yml.new .yarnrc.yml
+        fi
+
+        # Also use yarn config set for redundancy
         yarn config set npmAlwaysAuth true
         yarn config set npmAuthToken "${AUTH_TOKEN}"
-
-        # Scope-level config for normal @scope package resolution
         yarn config set npmScopes.${{ inputs.scope_name }}.npmRegistryServer "${{ inputs.registry_url }}"
         yarn config set npmScopes.${{ inputs.scope_name }}.npmAlwaysAuth true
         yarn config set npmScopes.${{ inputs.scope_name }}.npmAuthToken "${AUTH_TOKEN}"
-
-        # Registry-level config is required when lockfile entries resolve via __archiveUrl
-        # (for example https://npm.pkg.github.com/download/@scope/pkg/...).
-        yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAlwaysAuth' true
-        yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAuthToken' "${AUTH_TOKEN}"
-
-        # Some Yarn fetches use the /download path as the effective registry URL.
-        yarn config set 'npmRegistries["${{ inputs.registry_url }}/download"].npmAlwaysAuth' true
-        yarn config set 'npmRegistries["${{ inputs.registry_url }}/download"].npmAuthToken' "${AUTH_TOKEN}"
+        yarn config set npmRegistries.${{ inputs.registry_url }}.npmAlwaysAuth true
+        yarn config set npmRegistries.${{ inputs.registry_url }}.npmAuthToken "${AUTH_TOKEN}"
       env:
         AUTH_TOKEN: ${{ steps.resolve_token.outputs.auth_token }}
 
