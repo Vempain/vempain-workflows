@@ -78,14 +78,23 @@ jobs:
       contents: read
       packages: read
     env:
-      VEMPAIN_ACTION_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
-      NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
+      VEMPAIN_ACTION_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
+      NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
     steps:
       - name: Enable Corepack
         if: inputs.use_corepack
         run: corepack enable
       - name: Check out code
         uses: actions/checkout@v6
+
+      - name: Validate package token
+        if: inputs.use_scoped_registry
+        shell: bash
+        run: |
+          if [ -z "${VEMPAIN_ACTION_TOKEN}" ]; then
+            echo "::error::VEMPAIN_ACTION_TOKEN is required to download private @vempain packages from npm.pkg.github.com"
+            exit 1
+          fi
       - name: Set up Node.js ${{ inputs.node_version }}
         uses: actions/setup-node@v6
         with:
@@ -97,45 +106,10 @@ jobs:
         if: inputs.use_scoped_registry
         shell: bash
         run: |
-          python3 << 'PYEOF'
-          import re
-          # Ensure .yarnrc.yml has npm scope configuration for GitHub registry
-          # This is required for Yarn 4 to authenticate against private npm packages
-          # Check if .yarnrc.yml exists
-          try:
-              with open('.yarnrc.yml', 'r') as f:
-                  content = f.read()
-          except FileNotFoundError:
-              # Create minimal .yarnrc.yml with @vempain scope
-              content = '''npmScopes:
-            "@vempain":
-              npmRegistryServer: "https://npm.pkg.github.com"
-              npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"
-          '''
-              with open('.yarnrc.yml', 'w') as f:
-                  f.write(content)
-              exit(0)
-          # Check if @vempain scope already configured
-          if '"@vempain"' in content:
-              exit(0)
-          # npmScopes section exists but missing @vempain scope
-          if 'npmScopes:' in content:
-              # Insert @vempain scope into existing npmScopes section
-              pattern = r'(npmScopes:\n)((?:  [\w"@-]+:.*\n)*)'
-              replacement = r'\1  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\2'
-              content = re.sub(pattern, replacement, content, count=1)
-          else:
-              # No npmScopes section exists, append new section before yarnPath if present
-              if 'yarnPath:' in content:
-                  pattern = r'(yarnPath:)'
-                  replacement = r'npmScopes:\n  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\n\1'
-                  content = re.sub(pattern, replacement, content, count=1)
-              else:
-                  # Just append to the end
-                  content += '\nnpmScopes:\n  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n'
-          with open('.yarnrc.yml', 'w') as f:
-              f.write(content)
-          PYEOF
+          # Yarn expects scope key without '@' in npmScopes
+          yarn config set npmScopes.vempain.npmRegistryServer "https://npm.pkg.github.com"
+          yarn config set npmScopes.vempain.npmAlwaysAuth true
+          yarn config set npmScopes.vempain.npmAuthToken '${VEMPAIN_ACTION_TOKEN}'
       - name: Install dependencies
         run: yarn install ${{ inputs.use_immutable_install && '--immutable' || '' }}
         env:
@@ -170,8 +144,8 @@ jobs:
       contents: write
       packages: write
     env:
-      VEMPAIN_ACTION_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
-      NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
+      VEMPAIN_ACTION_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
+      NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
     steps:
       - name: Enable Corepack
         if: inputs.use_corepack
@@ -181,6 +155,15 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ github.token }}
+
+      - name: Validate package token
+        if: inputs.use_scoped_registry
+        shell: bash
+        run: |
+          if [ -z "${VEMPAIN_ACTION_TOKEN}" ]; then
+            echo "::error::VEMPAIN_ACTION_TOKEN is required to download private @vempain packages from npm.pkg.github.com"
+            exit 1
+          fi
       - name: Set up Node.js ${{ inputs.node_version }}
         uses: actions/setup-node@v6
         with:
@@ -222,45 +205,10 @@ jobs:
         if: inputs.use_scoped_registry
         shell: bash
         run: |
-          python3 << 'PYEOF'
-          import re
-          # Ensure .yarnrc.yml has npm scope configuration for GitHub registry
-          # This is required for Yarn 4 to authenticate against private npm packages
-          # Check if .yarnrc.yml exists
-          try:
-              with open('.yarnrc.yml', 'r') as f:
-                  content = f.read()
-          except FileNotFoundError:
-              # Create minimal .yarnrc.yml with @vempain scope
-              content = '''npmScopes:
-            "@vempain":
-              npmRegistryServer: "https://npm.pkg.github.com"
-              npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"
-          '''
-              with open('.yarnrc.yml', 'w') as f:
-                  f.write(content)
-              exit(0)
-          # Check if @vempain scope already configured
-          if '"@vempain"' in content:
-              exit(0)
-          # npmScopes section exists but missing @vempain scope
-          if 'npmScopes:' in content:
-              # Insert @vempain scope into existing npmScopes section
-              pattern = r'(npmScopes:\n)((?:  [\w"@-]+:.*\n)*)'
-              replacement = r'\1  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\2'
-              content = re.sub(pattern, replacement, content, count=1)
-          else:
-              # No npmScopes section exists, append new section before yarnPath if present
-              if 'yarnPath:' in content:
-                  pattern = r'(yarnPath:)'
-                  replacement = r'npmScopes:\n  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n\n\1'
-                  content = re.sub(pattern, replacement, content, count=1)
-              else:
-                  # Just append to the end
-                  content += '\nnpmScopes:\n  "@vempain":\n    npmRegistryServer: "https://npm.pkg.github.com"\n    npmAuthToken: "${VEMPAIN_ACTION_TOKEN}"\n'
-          with open('.yarnrc.yml', 'w') as f:
-              f.write(content)
-          PYEOF
+          # Yarn expects scope key without '@' in npmScopes
+          yarn config set npmScopes.vempain.npmRegistryServer "https://npm.pkg.github.com"
+          yarn config set npmScopes.vempain.npmAlwaysAuth true
+          yarn config set npmScopes.vempain.npmAuthToken '${VEMPAIN_ACTION_TOKEN}'
       - name: Build production package
         run: |
           yarn install ${{ inputs.use_immutable_install && '--immutable' || '' }}
