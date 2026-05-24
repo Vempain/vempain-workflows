@@ -61,7 +61,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -102,10 +102,19 @@ jobs:
 
       - name: Publish to GitHub Packages (npm)
         run: |
+          set -euo pipefail
           echo "registry=https://npm.pkg.github.com" > .npmrc
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.VEMPAIN_ACTION_TOKEN }}" >> .npmrc
           echo "@vempain:registry=https://npm.pkg.github.com" >> .npmrc
-          npm publish
+
+          packageName="$(node -p "require('./package.json').name")"
+          packageVersion="${{ steps.version.outputs.new_version }}"
+
+          if npm view "${packageName}@${packageVersion}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "Package ${packageName}@${packageVersion} already exists in GitHub Packages, skipping publish."
+          else
+            npm publish
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
 
