@@ -111,9 +111,6 @@ runs:
       run: |
         set -euo pipefail
 
-        echo "DEBUG: PRIMARY_TOKEN length: ${#PRIMARY_TOKEN}"
-        echo "DEBUG: FALLBACK_TOKEN length: ${#FALLBACK_TOKEN}"
-
         effective_token="${PRIMARY_TOKEN}"
         if [ -z "${effective_token}" ]; then
           effective_token="${FALLBACK_TOKEN}"
@@ -124,72 +121,32 @@ runs:
           exit 1
         fi
 
-        echo "DEBUG: Using token of length: ${#effective_token}"
+        echo "Using package token (length=${#effective_token})"
         echo "auth_token=${effective_token}" >> "$GITHUB_OUTPUT"
       env:
         PRIMARY_TOKEN: ${{ inputs.token }}
         FALLBACK_TOKEN: ${{ inputs.fallback_token }}
 
-    - name: Configure Yarn npm scope authentication
+    - name: Export auth environment for following steps
+      if: inputs.use_scoped_registry == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        token="${AUTH_TOKEN}"
+        {
+          echo "VEMPAIN_ACTION_TOKEN=${token}"
+          echo "NODE_AUTH_TOKEN=${token}"
+          echo "YARN_NPM_AUTH_TOKEN=${token}"
+        } >> "$GITHUB_ENV"
+      env:
+        AUTH_TOKEN: ${{ steps.resolve_token.outputs.auth_token }}
+
+    - name: Configure Yarn scope registry
       if: inputs.use_scoped_registry == 'true'
       shell: bash
       working-directory: ${{ inputs.working_directory }}
       run: |
         set -euo pipefail
-
-        echo "DEBUG: AUTH_TOKEN length: ${#AUTH_TOKEN}"
-
-        # Inject token into .yarnrc.yml for both placeholder and empty token forms.
-        if [ -f .yarnrc.yml ]; then
-          echo "DEBUG: Original .yarnrc.yml:"
-          cat .yarnrc.yml
-
-          sed -i.bak \
-            -e "s#npmAuthToken: \"\${VEMPAIN_ACTION_TOKEN-}\"#npmAuthToken: \"${AUTH_TOKEN}\"#g" \
-            -e "s#npmAuthToken: \"\"#npmAuthToken: \"${AUTH_TOKEN}\"#g" \
-            .yarnrc.yml
-
-          echo "DEBUG: Updated .yarnrc.yml:"
-          cat .yarnrc.yml
-
-          echo "DEBUG: Checking for token in file:"
-          grep -c "npmAuthToken:" .yarnrc.yml || true
-        fi
-
-        # Use yarn config set for both file and in-memory configuration
-        yarn config set npmAlwaysAuth true
-        yarn config set npmAuthToken "${AUTH_TOKEN}"
+        # Keep this limited to registry mapping; token comes from env vars.
         yarn config set npmScopes.${{ inputs.scope_name }}.npmRegistryServer "${{ inputs.registry_url }}"
         yarn config set npmScopes.${{ inputs.scope_name }}.npmAlwaysAuth true
-        yarn config set npmScopes.${{ inputs.scope_name }}.npmAuthToken "${AUTH_TOKEN}"
-        yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAlwaysAuth' true
-        yarn config set 'npmRegistries["${{ inputs.registry_url }}"].npmAuthToken' "${AUTH_TOKEN}"
-      env:
-        AUTH_TOKEN: ${{ steps.resolve_token.outputs.auth_token }}
-
-    - name: Configure npmrc authentication fallback
-      if: inputs.use_scoped_registry == 'true'
-      shell: bash
-      run: |
-        npmrc_path="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
-        registry_host="${{ inputs.registry_url }}"
-        registry_host="${registry_host#https://}"
-        registry_host="${registry_host#http://}"
-        registry_host="${registry_host%/}"
-
-        echo "DEBUG: npmrc_path: ${npmrc_path}"
-        echo "DEBUG: AUTH_TOKEN length: ${#AUTH_TOKEN}"
-
-        # Overwrite file to avoid malformed concatenation with setup-node generated lines.
-        : > "${npmrc_path}"
-        printf '%s\n' "@${{ inputs.scope_name }}:registry=${{ inputs.registry_url }}" >> "${npmrc_path}"
-        printf '%s\n' "//${registry_host}/:_authToken=${AUTH_TOKEN}" >> "${npmrc_path}"
-        printf '%s\n' "//${registry_host}/:always-auth=true" >> "${npmrc_path}"
-        printf '%s\n' "//${registry_host}/download/:_authToken=${AUTH_TOKEN}" >> "${npmrc_path}"
-        printf '%s\n' "//${registry_host}/download/:always-auth=true" >> "${npmrc_path}"
-
-        echo "DEBUG: .npmrc content:"
-        cat "${npmrc_path}"
-      env:
-        AUTH_TOKEN: ${{ steps.resolve_token.outputs.auth_token }}
-
