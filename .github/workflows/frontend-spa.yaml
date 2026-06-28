@@ -82,7 +82,7 @@ jobs:
       NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node and Yarn auth
         uses: Vempain/vempain-workflows/.github/actions/setup-node-yarn-auth@main
@@ -133,7 +133,7 @@ jobs:
       NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ github.token }}

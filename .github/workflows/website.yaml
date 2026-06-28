@@ -66,7 +66,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up PHP ${{ inputs.php_version }}
         uses: shivammathur/setup-php@v2
@@ -103,7 +103,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Node.js ${{ inputs.node_version }}
         uses: actions/setup-node@v6
@@ -162,7 +162,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Node.js ${{ inputs.node_version }}
         uses: actions/setup-node@v6
