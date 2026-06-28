@@ -46,7 +46,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
 
     steps:
       - name: Check out code
@@ -143,4 +143,3 @@ jobs:
               });
               core.info(`Release created: ${resp.data.html_url}`);
             }
-
