@@ -58,13 +58,13 @@ runs:
 
     - name: Set up Node.js (no cache, no scoped registry)
       if: inputs.use_cache != 'true' && inputs.use_scoped_registry != 'true'
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: ${{ inputs.node_version }}
 
     - name: Set up Node.js (no cache, scoped registry)
       if: inputs.use_cache != 'true' && inputs.use_scoped_registry == 'true'
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: ${{ inputs.node_version }}
         registry-url: ${{ inputs.registry_url }}
@@ -72,14 +72,14 @@ runs:
 
     - name: Set up Node.js (cache, no scoped registry)
       if: inputs.use_cache == 'true' && inputs.use_scoped_registry != 'true' && inputs.cache_dependency_path == ''
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: ${{ inputs.node_version }}
         cache: ${{ inputs.cache_package_manager }}
 
     - name: Set up Node.js (cache, no scoped registry, lockfile path)
       if: inputs.use_cache == 'true' && inputs.use_scoped_registry != 'true' && inputs.cache_dependency_path != ''
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: ${{ inputs.node_version }}
         cache: ${{ inputs.cache_package_manager }}
@@ -87,7 +87,7 @@ runs:
 
     - name: Set up Node.js (cache, scoped registry)
       if: inputs.use_cache == 'true' && inputs.use_scoped_registry == 'true' && inputs.cache_dependency_path == ''
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: ${{ inputs.node_version }}
         cache: ${{ inputs.cache_package_manager }}
@@ -96,7 +96,7 @@ runs:
 
     - name: Set up Node.js (cache, scoped registry, lockfile path)
       if: inputs.use_cache == 'true' && inputs.use_scoped_registry == 'true' && inputs.cache_dependency_path != ''
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: ${{ inputs.node_version }}
         cache: ${{ inputs.cache_package_manager }}
