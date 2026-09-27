@@ -113,6 +113,7 @@ runs:
       with:
         base-ref: ${{ steps.tags.outputs.base-ref }}
         head-ref: ${{ steps.tags.outputs.head-ref }}
+        instructions: ${{ github.action_path }}/release-notes-instructions.md
         model: gpt-5.6-luna
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
