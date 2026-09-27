@@ -20,6 +20,9 @@ Workflows that publish artifacts/images call this composite action to compute:
 All publishing workflows generate release descriptions with
 `github/copilot-release-notes@main`. Callers using `secrets: inherit` must make
 the organisation-level `COPILOT_GITHUB_TOKEN` secret available.
+The shared instructions are maintained in
+`.github/actions/create-release/release-notes-instructions.md`; consuming
+repositories do not need a copy.
 
 ### 1. `spring-boot-service.yaml`
 
