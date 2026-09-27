@@ -63,6 +63,9 @@ on:
       VEMPAIN_ACTION_TOKEN:
         description: 'Organisation token used for private @vempain packages and GitHub API calls'
         required: false
+      COPILOT_GITHUB_TOKEN:
+        description: 'Organisation token used to generate release notes'
+        required: true
 env:
   REGISTRY: ghcr.io
   REGISTRY_NAMESPACE: vempain
@@ -216,8 +219,8 @@ jobs:
           imgName="${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')"
           docker build . --tag ${imgName}:${{ steps.version.outputs.new_version }}
           docker push ${imgName}:${{ steps.version.outputs.new_version }}
-      - name: Compose release notes
-        id: release_notes
+      - name: Compose release details
+        id: release_details
         shell: bash
         env:
           TAG: ${{ inputs.version_tag_prefix }}${{ steps.version.outputs.new_version }}
@@ -228,8 +231,6 @@ jobs:
           packageUrl="https://github.com/orgs/${GITHUB_REPOSITORY_OWNER}/packages?repo_name=${GITHUB_REPOSITORY#*/}&ecosystem=container"
           {
             echo "body<<EOF"
-            echo "Automated release for ${TAG}"
-            echo
             echo "Build artifacts:"
             echo "- Docker image package: ${packageUrl}"
             echo
@@ -247,11 +248,11 @@ jobs:
         uses: Vempain/vempain-workflows/.github/actions/create-release@main
         with:
           github_token: ${{ github.token }}
+          copilot_github_token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           tag_name: ${{ inputs.version_tag_prefix }}${{ steps.version.outputs.new_version }}
           target_sha: ${{ github.sha }}
           create_tag: ${{ inputs.commit_version_bump == false }}
           release_name: Release ${{ inputs.version_tag_prefix }}${{ steps.version.outputs.new_version }}
-          release_body: ${{ steps.release_notes.outputs.body }}
+          release_body: ${{ steps.release_details.outputs.body }}
           draft: 'false'
           prerelease: 'false'
-          generate_release_notes: 'true'

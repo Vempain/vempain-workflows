@@ -48,6 +48,9 @@ on:
       VEMPAIN_ACTION_TOKEN:
         description: 'Organisation token with packages:write used for GitHub API calls'
         required: false
+      COPILOT_GITHUB_TOKEN:
+        description: 'Organisation token used to generate release notes'
+        required: true
 
 env:
   REGISTRY: ghcr.io
@@ -253,8 +256,8 @@ jobs:
           baseVersion: ${{ steps.version.outputs.base_version }}
           newVersion: ${{ steps.version.outputs.new_version }}
 
-      - name: Compose release notes
-        id: release_notes
+      - name: Compose release details
+        id: release_details
         shell: bash
         env:
           TAG: ${{ steps.version.outputs.new_version }}
@@ -270,8 +273,6 @@ jobs:
 
           {
             echo "body<<EOF"
-            echo "Automated release for ${TAG}"
-            echo
             echo "Build artifacts:"
             echo "- Backend Docker image package: ${backendPackageUrl}"
             echo "- Frontend Docker image package: ${frontendPackageUrl}"
@@ -288,12 +289,11 @@ jobs:
         uses: Vempain/vempain-workflows/.github/actions/create-release@main
         with:
           github_token: ${{ github.token }}
+          copilot_github_token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           tag_name: ${{ steps.version.outputs.new_version }}
           target_sha: ${{ github.sha }}
           create_tag: 'true'
           release_name: Release ${{ steps.version.outputs.new_version }}
-          release_body: ${{ steps.release_notes.outputs.body }}
+          release_body: ${{ steps.release_details.outputs.body }}
           draft: 'false'
           prerelease: 'false'
-          generate_release_notes: 'true'
-

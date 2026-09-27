@@ -17,6 +17,10 @@ Workflows that publish artifacts/images call this composite action to compute:
 - `main_version` (major part)
 - `new_version` (next patch version from tags)
 
+All publishing workflows generate release descriptions with
+`github/copilot-release-notes@main`. Callers using `secrets: inherit` must make
+the organisation-level `COPILOT_GITHUB_TOKEN` secret available.
+
 ### 1. `spring-boot-service.yaml`
 
 **For:** Spring Boot services that produce a Docker image (± Maven API artefact).
@@ -76,7 +80,7 @@ jobs:
 |----------------|----------|---------|---------------------|
 | `java_version` | `string` | `'25'`  | Temurin JDK version |
 
-**Secrets** — `VEMPAIN_ACTION_TOKEN` (required)
+**Secrets** — `VEMPAIN_ACTION_TOKEN` (required), `COPILOT_GITHUB_TOKEN` (required)
 
 **Minimal caller example**
 
@@ -125,7 +129,7 @@ jobs:
 | `push_all_version_tags` | `boolean` | `true`                               | Push `latest`/major/minor/patch tags; set `false` for patch-tag only |
 | `version_tag_prefix`    | `string`  | `''`                                 | Tag prefix, e.g. `v`                                                 |
 
-**Secrets** — `VEMPAIN_ACTION_TOKEN` (optional, falls back to `GITHUB_TOKEN`)
+**Secrets** — `VEMPAIN_ACTION_TOKEN` (optional, falls back to `GITHUB_TOKEN`), `COPILOT_GITHUB_TOKEN` (required)
 
 **Minimal caller example**
 
@@ -164,7 +168,7 @@ jobs:
 |----------------|----------|---------|-----------------|
 | `node_version` | `string` | `'22'`  | Node.js version |
 
-**Secrets** — `VEMPAIN_ACTION_TOKEN` (required)
+**Secrets** — `VEMPAIN_ACTION_TOKEN` (required), `COPILOT_GITHUB_TOKEN` (required)
 
 **Minimal caller example**
 
@@ -211,7 +215,7 @@ each published as a separate Docker image.
 | `frontend_dockerfile` | `string` | `frontend/Dockerfile`         | Path to frontend Dockerfile       |
 | `frontend_context`    | `string` | `frontend`                    | Docker build context for frontend |
 
-**Secrets** — `VEMPAIN_ACTION_TOKEN` (optional, falls back to `GITHUB_TOKEN`)
+**Secrets** — `VEMPAIN_ACTION_TOKEN` (optional, falls back to `GITHUB_TOKEN`), `COPILOT_GITHUB_TOKEN` (required)
 
 **Minimal caller example**
 
@@ -258,7 +262,7 @@ jobs:
 | `jre_package`         | `string` | `java-21-openjdk-headless`            | Runtime JRE package dependency in resulting RPM |
 | `artifact_name`       | `string` | `vempain-file-cli-rpm`                | Name for uploaded binary/source RPM artifacts   |
 
-**Secrets** — `VEMPAIN_ACTION_TOKEN` (optional, falls back to `GITHUB_TOKEN`)
+**Secrets** — `VEMPAIN_ACTION_TOKEN` (optional, falls back to `GITHUB_TOKEN`), `COPILOT_GITHUB_TOKEN` (required)
 
 **Minimal caller example**
 
