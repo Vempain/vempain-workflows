@@ -181,18 +181,6 @@ jobs:
           path: ${{ steps.discover.outputs.source_rpm_path }}
           if-no-files-found: error
 
-      - name: Create tag
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            github.rest.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: 'refs/tags/${{ steps.version.outputs.new_version }}',
-              sha: context.sha
-            })
-
       - name: Create GitHub Release
         id: create_release
         uses: Vempain/vempain-workflows/.github/actions/create-release@main

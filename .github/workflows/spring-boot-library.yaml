@@ -86,18 +86,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
           targetVersion: ${{ steps.version.outputs.new_version }}
 
-      - name: Create tag
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            github.rest.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: 'refs/tags/${{ steps.version.outputs.new_version }}',
-              sha: context.sha
-            })
-
       - name: Create GitHub Release
         uses: Vempain/vempain-workflows/.github/actions/create-release@main
         with:
