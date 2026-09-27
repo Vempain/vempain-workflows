@@ -16,6 +16,9 @@ on:
       VEMPAIN_ACTION_TOKEN:
         description: 'Organisation token with packages:write used for publishing'
         required: true
+      COPILOT_GITHUB_TOKEN:
+        description: 'Organisation token used to generate release notes'
+        required: true
 
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
@@ -96,50 +99,19 @@ jobs:
             })
 
       - name: Create GitHub Release
-        uses: actions/github-script@v9
+        uses: Vempain/vempain-workflows/.github/actions/create-release@main
         with:
           github-token: ${{ github.token }}
-          script: |
-            const tag = '${{ steps.version.outputs.new_version }}';
-            const packageUrl = `https://github.com/orgs/${context.repo.owner}/packages?repo_name=${context.repo.repo}&ecosystem=maven`;
+          copilot_github_token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          tag_name: ${{ steps.version.outputs.new_version }}
+          target_sha: ${{ github.sha }}
+          release_name: Release ${{ steps.version.outputs.new_version }}
+          release_body: |
+            Build artifacts:
+            - Maven package list: https://github.com/orgs/${{ github.repository_owner }}/packages?repo_name=${{ github.event.repository.name }}&ecosystem=maven
 
-            // Check if release already exists
-            let releaseExists = false;
-            try {
-              await github.rest.repos.getReleaseByTag({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag: tag
-              });
-              releaseExists = true;
-              core.info(`Release for ${tag} already exists, skipping creation`);
-            } catch (error) {
-              if (error.status !== 404) {
-                throw error;
-              }
-            }
-
-            if (!releaseExists) {
-              const resp = await github.rest.repos.createRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag_name: tag,
-                name: `Release ${tag}`,
-                body: [
-                  `Automated release for ${tag}`,
-                  '',
-                  'Build artifacts:',
-                  `- Maven package list: ${packageUrl}`,
-                  '',
-                  'Artifact tags published:',
-                  '- latest',
-                  `- ${{ steps.version.outputs.main_version }}`,
-                  `- ${{ steps.version.outputs.base_version }}`,
-                  `- ${tag}`
-                ].join('\n'),
-                draft: false,
-                prerelease: false,
-                generate_release_notes: true
-              });
-              core.info(`Release created: ${resp.data.html_url}`);
-            }
+            Artifact tags published:
+            - latest
+            - ${{ steps.version.outputs.main_version }}
+            - ${{ steps.version.outputs.base_version }}
+            - ${{ steps.version.outputs.new_version }}

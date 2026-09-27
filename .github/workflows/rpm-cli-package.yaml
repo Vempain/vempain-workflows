@@ -51,6 +51,9 @@ on:
       VEMPAIN_ACTION_TOKEN:
         description: 'Optional token for private package resolution during Gradle build'
         required: false
+      COPILOT_GITHUB_TOKEN:
+        description: 'Organisation token used to generate release notes'
+        required: true
 
 jobs:
   test:
@@ -192,35 +195,19 @@ jobs:
 
       - name: Create GitHub Release
         id: create_release
-        uses: actions/github-script@v9
+        uses: Vempain/vempain-workflows/.github/actions/create-release@main
         with:
           github-token: ${{ github.token }}
-          script: |
-            const tag = '${{ steps.version.outputs.new_version }}';
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const mavenPackageUrl = `https://github.com/orgs/${owner}/packages?repo_name=${repo}&ecosystem=maven`;
+          copilot_github_token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          tag_name: ${{ steps.version.outputs.new_version }}
+          target_sha: ${{ github.sha }}
+          release_name: Release ${{ steps.version.outputs.new_version }}
+          release_body: |
+            Build artifacts:
+            - RPM workflow artifacts: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - Maven API package list: https://github.com/orgs/${{ github.repository_owner }}/packages?repo_name=${{ github.event.repository.name }}&ecosystem=maven
 
-            const resp = await github.rest.repos.createRelease({
-              owner,
-              repo,
-              tag_name: tag,
-              name: `Release ${tag}`,
-              body: [
-                `Automated release for ${tag}`,
-                '',
-                'Build artifacts:',
-                `- RPM workflow artifacts: https://github.com/${owner}/${repo}/actions/runs/${context.runId}`,
-                `- Maven API package list: ${mavenPackageUrl}`,
-                '',
-                `RPM package version: ${tag}`
-              ].join('\n'),
-              draft: false,
-              prerelease: false,
-              generate_release_notes: true
-            });
-            core.setOutput('release_id', String(resp.data.id));
-            core.info(`Release created: ${resp.data.html_url}`);
+            RPM package version: ${{ steps.version.outputs.new_version }}
 
       - name: Attach RPMs to release and update release notes
         if: inputs.attach_to_release
@@ -323,4 +310,3 @@ jobs:
             }
 
             core.info(`Attached ${uploadedAssetUrls.length} RPM assets to release ${tag}.`);
-
