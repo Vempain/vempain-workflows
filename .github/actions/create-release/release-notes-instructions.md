@@ -83,7 +83,9 @@ polish.
 
 ## Published artifacts and links
 
-Include published artifact information on exactly one line. For Docker releases, list verified image tags; for npm or
+You MUST include published artifact information on exactly one line. Never put artifact names, versions, or Docker image
+tags in a Markdown list, and never split them across multiple lines. For Docker releases, list verified image tags; for
+npm or
 Maven releases, list verified package names and versions; for other release types, list the verified artifact or package
 details supplied by the release workflow. Never guess artifact names, versions, tags, or links. Use the actual
 repository URL and exact compared refs for the full changelog link.

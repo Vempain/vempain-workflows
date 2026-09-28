@@ -277,11 +277,7 @@ jobs:
             echo "- Backend Docker image package: ${backendPackageUrl}"
             echo "- Frontend Docker image package: ${frontendPackageUrl}"
             echo
-            echo "Docker tags pushed:"
-            echo "- latest"
-            echo "- ${MAIN_VERSION}"
-            echo "- ${BASE_VERSION}"
-            echo "- ${TAG}"
+            echo "Docker tags pushed: latest, ${MAIN_VERSION}, ${BASE_VERSION}, ${TAG}"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 

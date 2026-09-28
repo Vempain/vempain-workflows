@@ -22,7 +22,9 @@ All publishing workflows generate release descriptions with
 the organisation-level `COPILOT_GITHUB_TOKEN` secret available.
 The shared instructions are maintained in
 `.github/actions/create-release/release-notes-instructions.md`; consuming
-repositories do not need a copy.
+repositories do not need a copy. The create-release action also enforces
+single-line published artifact and Docker tag values after generation, because
+the Copilot release-notes formatter may otherwise return list-formatted output.
 
 ### 1. `spring-boot-service.yaml`
 

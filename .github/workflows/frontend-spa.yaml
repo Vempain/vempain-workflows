@@ -235,12 +235,11 @@ jobs:
             echo "- Docker image package: ${packageUrl}"
             echo
             echo "Docker tags pushed:"
+            tags="${TAG}"
             if [ "${PUSH_ALL_VERSION_TAGS}" = "true" ]; then
-              echo "- latest"
-              echo "- ${MAIN_VERSION}"
-              echo "- ${BASE_VERSION}"
+              tags="latest, ${MAIN_VERSION}, ${BASE_VERSION}, ${TAG}"
             fi
-            echo "- ${TAG}"
+            echo "${tags}"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
