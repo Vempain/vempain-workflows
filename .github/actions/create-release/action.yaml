@@ -126,6 +126,9 @@ runs:
     - name: Generate release notes with Copilot
       id: notes
       uses: github/copilot-release-notes@main
+      # This action always formats its model output as PR-entry bullets. The
+      # shared instructions guide content and accuracy but cannot replace that
+      # formatter's output schema.
       with:
         base-ref: ${{ steps.tags.outputs.base-ref }}
         head-ref: ${{ steps.tags.outputs.head-ref }}

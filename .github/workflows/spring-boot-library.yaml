@@ -98,8 +98,4 @@ jobs:
             Build artifacts:
             - Maven package list: https://github.com/orgs/${{ github.repository_owner }}/packages?repo_name=${{ github.event.repository.name }}&ecosystem=maven
 
-            Artifact tags published:
-            - latest
-            - ${{ steps.version.outputs.main_version }}
-            - ${{ steps.version.outputs.base_version }}
-            - ${{ steps.version.outputs.new_version }}
+            Maven package versions published: latest, ${{ steps.version.outputs.main_version }}, ${{ steps.version.outputs.base_version }}, ${{ steps.version.outputs.new_version }}

@@ -72,7 +72,7 @@ Use this structure:
 
 <Include this section when no breaking API changes are verified, or use it for precise compatibility notes.>
 
-Docker tags: <list only tags verified from the repository's release workflow or release metadata, on one line>
+Published artifacts: <list only artifact names, versions, image tags, or package links verified from the repository's release workflow or release metadata, on one line>
 
 **Full changelog:** [<base-ref>...<head-ref>](<repository compare URL>)
 ```
@@ -81,7 +81,9 @@ Use additional sections only when supported by the evidence. Prefer clear paragr
 detail. Explain technical changes in terms useful to operators and API consumers, but never sacrifice accuracy for
 polish.
 
-## Docker tags and links
+## Published artifacts and links
 
-Include Docker tags on exactly one line. Obtain them from verified release metadata or the repository's release
-workflow; never guess them. Use the actual repository URL and exact compared refs for the full changelog link.
+Include published artifact information on exactly one line. For Docker releases, list verified image tags; for npm or
+Maven releases, list verified package names and versions; for other release types, list the verified artifact or package
+details supplied by the release workflow. Never guess artifact names, versions, tags, or links. Use the actual
+repository URL and exact compared refs for the full changelog link.
