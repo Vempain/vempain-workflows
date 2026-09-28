@@ -172,8 +172,4 @@ jobs:
             - Docker image package: https://github.com/orgs/${{ github.repository_owner }}/packages?repo_name=${{ github.event.repository.name }}&ecosystem=container
             ${{ inputs.publish_api && format('- Maven API package list: https://github.com/orgs/{0}/packages?repo_name={1}&ecosystem=maven', github.repository_owner, github.event.repository.name) || '' }}
 
-            Docker tags pushed:
-            - latest
-            - ${{ steps.version.outputs.main_version }}
-            - ${{ steps.version.outputs.base_version }}
-            - ${{ steps.version.outputs.new_version }}
+            Docker tags pushed: latest, ${{ steps.version.outputs.main_version }}, ${{ steps.version.outputs.base_version }}, ${{ steps.version.outputs.new_version }}

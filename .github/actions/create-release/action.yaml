@@ -126,9 +126,6 @@ runs:
     - name: Generate release notes with Copilot
       id: notes
       uses: github/copilot-release-notes@main
-      # This action always formats its model output as PR-entry bullets. The
-      # shared instructions guide content and accuracy but cannot replace that
-      # formatter's output schema.
       with:
         base-ref: ${{ steps.tags.outputs.base-ref }}
         head-ref: ${{ steps.tags.outputs.head-ref }}
@@ -148,8 +145,43 @@ runs:
         github-token: ${{ inputs.github_token }}
         script: |
           const releaseId = Number.parseInt(process.env.RELEASE_ID, 10);
-          const generatedNotes = process.env.RELEASE_NOTES || '';
-          const additionalDetails = process.env.RELEASE_BODY || '';
+          const collapseArtifactLists = (text) => {
+            const lines = text.split('\n');
+            const output = [];
+
+            for (let index = 0; index < lines.length; index += 1) {
+              const line = lines[index];
+              const isTagList = line.trim() === 'Docker tags pushed:';
+              const isPublishedArtifactList = line.trim() === 'Published artifacts:';
+              if (!isTagList && !isPublishedArtifactList) {
+                output.push(line);
+                continue;
+              }
+
+              const tags = [];
+              let nextIndex = index + 1;
+              while (nextIndex < lines.length) {
+                const match = lines[nextIndex].match(/^\s*-\s+(.+?)\s*$/);
+                if (!match) {
+                  break;
+                }
+                tags.push(match[1]);
+                nextIndex += 1;
+              }
+
+              if (tags.length === 0) {
+                output.push(line);
+              } else {
+                output.push(`${line.trim()} ${tags.join(', ')}`);
+                index = nextIndex - 1;
+              }
+            }
+
+            return output.join('\n');
+          };
+
+          const generatedNotes = collapseArtifactLists(process.env.RELEASE_NOTES || '');
+          const additionalDetails = collapseArtifactLists(process.env.RELEASE_BODY || '');
           const body = [generatedNotes, additionalDetails].filter(Boolean).join('\n\n');
 
           await github.rest.repos.updateRelease({
