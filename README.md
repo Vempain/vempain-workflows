@@ -199,25 +199,26 @@ jobs:
 
 ### 5. `website.yaml`
 
-**For:** Repositories that combine a PHP Slim backend and a TypeScript frontend,
-each published as a separate Docker image.
+**For:** The split website deployment, where the Spring Boot backend and
+TypeScript frontend are maintained in separate repositories and published as
+separate Docker images.
 
-| Caller            |
-|-------------------|
-| `vempain-website` |
+| Caller                    |
+|---------------------------|
+| `vempain-website-backend`  |
+| `vempain-website-frontend` |
 
 **Inputs**
 
-| Name                  | Type     | Default                       | Description                       |
-|-----------------------|----------|-------------------------------|-----------------------------------|
-| `php_version`         | `string` | `'8.5'`                       | PHP version                       |
-| `php_extensions`      | `string` | `bcmath, mbstring, pdo_pgsql` | Comma-separated PHP extensions    |
-| `node_version`        | `string` | `'24'`                        | Node.js version                   |
-| `backend_image`       | `string` | **required**                  | Full GHCR image name for backend  |
-| `frontend_image`      | `string` | **required**                  | Full GHCR image name for frontend |
-| `backend_dockerfile`  | `string` | `backend/Dockerfile`          | Path to backend Dockerfile        |
-| `backend_context`     | `string` | `backend`                     | Docker build context for backend  |
-| `frontend_dockerfile` | `string` | `frontend/Dockerfile`         | Path to frontend Dockerfile       |
+| Name                  | Type     | Default                    | Description                       |
+|-----------------------|----------|----------------------------|-----------------------------------|
+| `java_version`        | `string` | `'25'`                     | Temurin JDK version               |
+| `node_version`        | `string` | `'24'`                     | Node.js version                   |
+| `backend_image`       | `string` | **required**               | Full GHCR image name for backend  |
+| `frontend_image`      | `string` | **required**               | Full GHCR image name for frontend |
+| `backend_dockerfile`  | `string` | `Dockerfile`               | Path to backend Dockerfile        |
+| `backend_context`     | `string` | `.`                        | Docker build context for backend  |
+| `frontend_dockerfile` | `string` | `Dockerfile`               | Path to frontend Dockerfile       |
 | `frontend_context`    | `string` | `frontend`                    | Docker build context for frontend |
 
 **Secrets** — `VEMPAIN_ACTION_TOKEN` (optional, falls back to `GITHUB_TOKEN`), `COPILOT_GITHUB_TOKEN` (required)
@@ -299,4 +300,4 @@ Copy the appropriate file to `.github/dependabot.yml` in your repository.
 | `dependabot-java-library.yaml`     | Spring Boot libraries (`vempain-auth`)                                                       |
 | `dependabot-frontend-spa.yaml`     | TypeScript SPA frontends (`vempain-admin-frontend`, `vempain-file-frontend`, `vempain-site`) |
 | `dependabot-frontend-library.yaml` | TypeScript libraries (`vempain-auth-frontend`)                                               |
-| `dependabot-website.yaml`          | PHP + TypeScript website (`vempain-website`)                                                 |
+| `dependabot-website.yaml`          | Spring Boot + TypeScript website repositories (`vempain-website-backend`, `vempain-website-frontend`) |

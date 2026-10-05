@@ -29,7 +29,8 @@
 - `frontend-spa.yaml`: Node/Yarn test lane + Docker publish lane with optional version-bump commit/tag-prefix behavior.
 - `frontend-library.yaml`: npm package publish to GitHub Packages (no Docker), always sets package version before
   publish.
-- `website.yaml`: mixed backend/frontend pipeline (PHP + Node), builds and pushes two Docker images.
+- `website.yaml`: legacy website pipeline template; the current website repositories use separate Spring Boot and
+  frontend workflows and this template must be updated before reuse.
 - `rpm-cli-package.yaml`: Java fat-jar -> RPM packaging flow, uploads binary + source RPM artifacts, can attach assets
   to release.
 
@@ -49,7 +50,8 @@
 
 - Core third-party actions: `actions/checkout`, `actions/setup-node`, `actions/setup-java`,
   `gradle/actions/setup-gradle`, `docker/login-action`, `actions/github-script`, `actions/upload-artifact`.
-- Website backend uses `shivammathur/setup-php`; RPM flow uses `naveenrajm7/rpmbuild@master`.
+- The legacy website workflow uses `shivammathur/setup-php`; do not use it for the current Spring Boot website backend.
+  RPM flow uses `naveenrajm7/rpmbuild@master`.
 - Dependabot templates are intentionally ecosystem-split by repo type; copy one template to target repo as
   `.github/dependabot.yml`.
 
@@ -64,3 +66,6 @@
 - If changing RPM release behavior, verify both artifact upload steps and the release-asset attachment script path
   variables remain consistent.
 
+  ## Tag ACL rule
+
+  Tags are metadata, not ACL-bearing resources. Tag entities have no ACL information, so tag list, search, and mutation endpoints must not perform ACL checks on tags. ACL checks apply only to resources that explicitly carry an ACL.
