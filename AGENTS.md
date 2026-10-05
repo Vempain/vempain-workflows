@@ -5,8 +5,12 @@
 - This repository is a **workflow catalog** for other Vempain repos, not an app/service runtime.
 - Main assets:
     - reusable workflows in `.github/workflows/`
-    - shared composite action in `.github/actions/generate-version/action.yaml`
+    - shared composite actions in `.github/actions/` (`generate-version`, `setup-node-yarn-auth`, `create-release` with its
+      `release-notes-instructions.md`)
     - copy-ready templates in `dependabot-templates/`
+- Consumers today: `spring-boot-service.yaml` (admin, file and website backends), `spring-boot-library.yaml` (`vempain-auth`), `frontend-spa.yaml`
+  (admin, file and website frontends, `vempain-site`), `frontend-library.yaml` (`vempain-auth-frontend`, `vempain-rt-editor`, `vempain-rt-renderer`),
+  `rpm-cli-package.yaml` (`vempain-cli`).
 
 ## Big-picture architecture
 
@@ -66,6 +70,6 @@
 - If changing RPM release behavior, verify both artifact upload steps and the release-asset attachment script path
   variables remain consistent.
 
-  ## Tag ACL rule
+## Tag ACL rule
 
-  Tags are metadata, not ACL-bearing resources. Tag entities have no ACL information, so tag list, search, and mutation endpoints must not perform ACL checks on tags. ACL checks apply only to resources that explicitly carry an ACL.
+Tags are metadata, not ACL-bearing resources. Tag entities have no ACL information, so tag list, search, and mutation endpoints must not perform ACL checks on tags. ACL checks apply only to resources that explicitly carry an ACL.
