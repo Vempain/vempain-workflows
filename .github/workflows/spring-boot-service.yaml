@@ -112,6 +112,12 @@ jobs:
         id: version
         uses: Vempain/vempain-workflows/.github/actions/generate-version@main
 
+      - name: Configure Gradle release version
+        id: gradle_version
+        uses: Vempain/vempain-workflows/.github/actions/configure-gradle-version@main
+        with:
+          release_version: ${{ steps.version.outputs.new_version }}
+
       - name: Set up Java temurin ${{ inputs.java_version }}
         uses: actions/setup-java@v6
         with:
@@ -126,15 +132,17 @@ jobs:
 
       - name: Build jar-file with Gradle
         shell: bash
-        run: ./gradlew clean bootJar -Pversion=${newVersion}
+        run: ./gradlew clean bootJar --init-script "${initScript}" -PreleaseVersion=${newVersion} -Dvempain.releaseVersion=${newVersion}
         env:
           newVersion: ${{ steps.version.outputs.new_version }}
+          initScript: ${{ steps.gradle_version.outputs.init_script }}
 
       - name: Publish API to GitHub Packages (Maven)
         if: inputs.publish_api && contains(github.event.head_commit.message, 'Merge pull request')
-        run: ./gradlew :api:clean :api:publish -PreleaseVersion=${newVersion}
+        run: ./gradlew :api:clean :api:publish --init-script "${initScript}" -PreleaseVersion=${newVersion} -Dvempain.releaseVersion=${newVersion}
         env:
           newVersion: ${{ steps.version.outputs.new_version }}
+          initScript: ${{ steps.gradle_version.outputs.init_script }}
 
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
