@@ -38,6 +38,15 @@ runs:
         gradle.projectsEvaluated {
             gradle.rootProject.allprojects { project ->
                 project.version = releaseVersion
+
+                def publishing = project.extensions.findByType(org.gradle.api.publish.PublishingExtension)
+                if (publishing != null) {
+                    publishing.publications
+                        .withType(org.gradle.api.publish.maven.MavenPublication)
+                        .all { publication ->
+                            publication.version = releaseVersion
+                        }
+                }
             }
         }
         EOF
