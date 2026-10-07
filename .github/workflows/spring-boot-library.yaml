@@ -65,6 +65,12 @@ jobs:
         id: version
         uses: Vempain/vempain-workflows/.github/actions/generate-version@main
 
+      - name: Configure Gradle release version
+        id: gradle_version
+        uses: Vempain/vempain-workflows/.github/actions/configure-gradle-version@main
+        with:
+          release_version: ${{ steps.version.outputs.new_version }}
+
       - name: Configure Maven for GitHub Packages
         run: |
           mkdir -p ~/.m2
@@ -81,10 +87,11 @@ jobs:
           EOF
 
       - name: Publish package
-        run: ./gradlew publish -PreleaseVersion=${targetVersion} --no-daemon
+        run: ./gradlew publish --init-script "${initScript}" -PreleaseVersion=${targetVersion} -Dvempain.releaseVersion=${targetVersion} --no-daemon
         env:
           GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
           targetVersion: ${{ steps.version.outputs.new_version }}
+          initScript: ${{ steps.gradle_version.outputs.init_script }}
 
       - name: Create GitHub Release
         uses: Vempain/vempain-workflows/.github/actions/create-release@main

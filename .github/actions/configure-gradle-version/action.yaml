@@ -1,0 +1,45 @@
+name: Configure Gradle release version
+
+description: Make the calculated release version authoritative for every Gradle project.
+
+inputs:
+  release_version:
+    description: Release version to apply to all Gradle projects
+    required: true
+
+outputs:
+  init_script:
+    description: Path to the Gradle init script that applies the release version
+    value: ${{ steps.configure.outputs.init_script }}
+
+runs:
+  using: composite
+  steps:
+    - name: Create Gradle version init script
+      id: configure
+      shell: bash
+      env:
+        RELEASE_VERSION: ${{ inputs.release_version }}
+      run: |
+        set -euo pipefail
+
+        if [[ ! "${RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Refusing to publish invalid release version '${RELEASE_VERSION}'." >&2
+          exit 1
+        fi
+
+        initScript="${RUNNER_TEMP}/vempain-gradle-release-version.init.gradle"
+        cat > "${initScript}" <<'EOF'
+        def releaseVersion = System.getProperty('vempain.releaseVersion')
+        if (!releaseVersion) {
+            throw new GradleException('System property vempain.releaseVersion is required')
+        }
+
+        gradle.projectsEvaluated {
+            gradle.rootProject.allprojects { project ->
+                project.version = releaseVersion
+            }
+        }
+        EOF
+
+        echo "init_script=${initScript}" >> "$GITHUB_OUTPUT"
