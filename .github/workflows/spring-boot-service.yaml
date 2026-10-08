@@ -170,7 +170,7 @@ jobs:
           baseVersion: ${{ steps.version.outputs.base_version }}
           newVersion: ${{ steps.version.outputs.new_version }}
 
-      - name: Create GitHub Release
+      - name: "[spring-boot-service] Create GitHub Release"
         uses: Vempain/vempain-workflows/.github/actions/create-release@main
         with:
           github_token: ${{ github.token }}
