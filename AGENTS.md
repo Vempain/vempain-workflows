@@ -8,8 +8,10 @@
     - shared composite actions in `.github/actions/` (`generate-version`, `setup-node-yarn-auth`, `create-release` with its
       `release-notes-instructions.md`)
     - copy-ready templates in `dependabot-templates/`
-- Consumers today: `spring-boot-service.yaml` (admin, file and website backends), `spring-boot-library.yaml` (`vempain-auth`), `frontend-spa.yaml`
-  (admin, file and website frontends, `vempain-site`), `frontend-library.yaml` (`vempain-auth-frontend`, `vempain-rt-editor`, `vempain-rt-renderer`),
+- Consumers today: `spring-boot-service.yaml` (admin, file and website backends), `spring-boot-library.yaml`
+  (`vempain-auth`, `vempain-common`), `frontend-spa.yaml`
+  (admin, file and website frontends, `vempain-site`), `frontend-library.yaml` (`vempain-auth-frontend`,
+  `vempain-common-frontend`, `vempain-rt-editor`, `vempain-rt-renderer`),
   `rpm-cli-package.yaml` (`vempain-cli`).
 
 ## Big-picture architecture
@@ -56,8 +58,10 @@
   `gradle/actions/setup-gradle`, `docker/login-action`, `actions/github-script`, `actions/upload-artifact`.
 - The legacy website workflow uses `shivammathur/setup-php`; do not use it for the current Spring Boot website backend.
   RPM flow uses `naveenrajm7/rpmbuild@master`.
-- Dependabot templates are intentionally ecosystem-split by repo type; copy one template to target repo as
-  `.github/dependabot.yml`.
+- Dependabot templates are intentionally ecosystem-split by repo type; copy one template to the target repo as
+  `.github/dependabot.yaml` (the Vempain repositories use the `.yaml` spelling; backends with GitHub Packages
+  dependencies add a
+  `maven-github` registry authenticated with `VEMPAIN_ACTION_USER`/`VEMPAIN_ACTION_TOKEN`).
 
 ## Editing checklist for agents
 

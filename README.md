@@ -292,12 +292,12 @@ jobs:
 ## Dependabot templates
 
 Ready-to-use Dependabot configurations live in `dependabot-templates/`.
-Copy the appropriate file to `.github/dependabot.yml` in your repository.
+Copy the appropriate file to `.github/dependabot.yaml` in your repository.
 
-| Template file                      | For                                                                                          |
-|------------------------------------|----------------------------------------------------------------------------------------------|
-| `dependabot-java-service.yaml`     | Spring Boot services (`vempain-admin-backend`, `vempain-file-backend`)                       |
-| `dependabot-java-library.yaml`     | Spring Boot libraries (`vempain-auth`)                                                       |
-| `dependabot-frontend-spa.yaml`     | TypeScript SPA frontends (`vempain-admin-frontend`, `vempain-file-frontend`, `vempain-site`) |
-| `dependabot-frontend-library.yaml` | TypeScript libraries (`vempain-auth-frontend`)                                               |
+| Template file                      | For                                                                                                   |
+|------------------------------------|-------------------------------------------------------------------------------------------------------|
+| `dependabot-java-service.yaml`     | Spring Boot services (`vempain-admin-backend`, `vempain-file-backend`)                                |
+| `dependabot-java-library.yaml`     | Spring Boot libraries (`vempain-auth`, `vempain-common`)                                              |
+| `dependabot-frontend-spa.yaml`     | TypeScript SPA frontends (`vempain-admin-frontend`, `vempain-file-frontend`, `vempain-site`)          |
+| `dependabot-frontend-library.yaml` | TypeScript libraries (`vempain-auth-frontend`, `vempain-common-frontend`)                             |
 | `dependabot-website.yaml`          | Spring Boot + TypeScript website repositories (`vempain-website-backend`, `vempain-website-frontend`) |
