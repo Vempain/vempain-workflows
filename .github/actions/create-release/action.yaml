@@ -45,7 +45,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Create git tag
+    - name: "[create-release] Create git tag"
       if: inputs.create_tag == 'true'
       uses: actions/github-script@v9
       with:
@@ -76,7 +76,7 @@ runs:
             core.info(`Tag ${tag} already points to ${sha}; continuing.`);
           }
 
-    - name: Create GitHub Release
+    - name: "[create-release] Create GitHub Release"
       id: create_release
       uses: actions/github-script@v9
       env:
@@ -100,7 +100,7 @@ runs:
           core.setOutput('release_id', String(response.data.id));
           core.info(`Release created: ${response.data.html_url}`);
 
-    - name: Resolve release tags
+    - name: "[create-release] Resolve release tags"
       id: tags
       shell: bash
       env:
@@ -115,27 +115,31 @@ runs:
         previous_tag="$(git tag --sort=-version:refname \
           | awk -v current="${RELEASE_TAG}" '$0 != current { print; exit }')"
         if [ -z "${previous_tag}" ]; then
-          echo "No previous release tag was found." >&2
-          exit 1
+          echo "No previous release tag was found; creating the initial release without generated change notes."
+          echo "has_previous=false" >> "${GITHUB_OUTPUT}"
+          echo "head_ref=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
+          exit 0
         fi
 
-        echo "base-ref=${previous_tag}" >> "${GITHUB_OUTPUT}"
-        echo "head-ref=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
+        echo "has_previous=true" >> "${GITHUB_OUTPUT}"
+        echo "base_ref=${previous_tag}" >> "${GITHUB_OUTPUT}"
+        echo "head_ref=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
         echo "Generating notes for ${previous_tag}..${RELEASE_TAG}"
 
-    - name: Generate release notes with Copilot
+    - name: "[create-release] Generate release notes with Copilot"
+      if: steps.tags.outputs.has_previous == 'true'
       id: notes
       uses: github/copilot-release-notes@main
       with:
-        base-ref: ${{ steps.tags.outputs.base-ref }}
-        head-ref: ${{ steps.tags.outputs.head-ref }}
+        base-ref: ${{ steps.tags.outputs.base_ref }}
+        head-ref: ${{ steps.tags.outputs.head_ref }}
         instructions: ${{ github.action_path }}/release-notes-instructions.md
         model: gpt-5.6-luna
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         COPILOT_GITHUB_TOKEN: ${{ inputs.copilot_github_token }}
 
-    - name: Update GitHub release notes
+    - name: "[create-release] Update GitHub release notes"
       uses: actions/github-script@v9
       env:
         RELEASE_ID: ${{ steps.create_release.outputs.release_id }}

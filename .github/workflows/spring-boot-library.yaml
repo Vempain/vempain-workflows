@@ -98,7 +98,7 @@ jobs:
           targetVersion: ${{ steps.version.outputs.new_version }}
           initScript: ${{ steps.gradle_version.outputs.init_script }}
 
-      - name: Create GitHub Release
+      - name: "[spring-boot-library] Create GitHub Release"
         uses: Vempain/vempain-workflows/.github/actions/create-release@main
         with:
           github_token: ${{ github.token }}
