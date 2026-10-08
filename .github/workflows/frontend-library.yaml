@@ -3,7 +3,7 @@ name: Frontend Library CI
 # Reusable workflow for Vempain TypeScript/JS libraries that are published
 # to GitHub Packages (npm) but do NOT produce a Docker image.
 #
-# Callers: vempain-auth-frontend
+# Callers: vempain-auth-frontend, vempain-common-frontend
 
 on:
   workflow_call:

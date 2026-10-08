@@ -3,7 +3,7 @@ name: Spring Boot Library CI
 # Reusable workflow for Vempain Spring Boot libraries that publish to
 # GitHub Packages (Maven) but do NOT produce a Docker image.
 #
-# Callers: vempain-auth
+# Callers: vempain-auth, vempain-common
 
 on:
   workflow_call:
@@ -26,10 +26,12 @@ jobs:
     name: Run all tests
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || github.token }}
     permissions:
       contents: read
       packages: read
-
     steps:
       - name: Check out code
         uses: actions/checkout@v7
@@ -48,8 +50,12 @@ jobs:
     name: Package and publish to GitHub Maven
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || github.token }}
     permissions:
       contents: write
+      packages: write
 
     steps:
       - name: Check out code
@@ -89,7 +95,6 @@ jobs:
       - name: Publish package
         run: ./gradlew publish --init-script "${initScript}" -PreleaseVersion=${targetVersion} -Dvempain.releaseVersion=${targetVersion} --no-daemon
         env:
-          GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
           targetVersion: ${{ steps.version.outputs.new_version }}
           initScript: ${{ steps.gradle_version.outputs.init_script }}
 

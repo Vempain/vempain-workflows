@@ -29,6 +29,9 @@ on:
         type: string
         default: 'service/build/reports'
     secrets:
+      VEMPAIN_ACTION_TOKEN:
+        description: 'Optional token used to resolve private GitHub Packages dependencies'
+        required: false
       COPILOT_GITHUB_TOKEN:
         description: 'Organisation token used to generate release notes'
         required: true
@@ -48,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_ACTOR: ${{ github.actor }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || github.token }}
     permissions:
       contents: read
       packages: read
@@ -98,7 +101,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     env:
       GITHUB_ACTOR: ${{ github.actor }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || github.token }}
     permissions:
       contents: write
       packages: write
