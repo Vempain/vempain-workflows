@@ -34,28 +34,24 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v7
 
-      - name: Set up Node.js ${{ inputs.node_version }}
-        uses: actions/setup-node@v7
+      - name: "[frontend-library] Set up Node.js and Yarn authentication"
+        uses: Vempain/vempain-workflows/.github/actions/setup-node-yarn-auth@main
         with:
-          node-version: ${{ inputs.node_version }}
-          registry-url: 'https://npm.pkg.github.com'
+          node_version: ${{ inputs.node_version }}
+          use_corepack: 'true'
+          use_scoped_registry: 'true'
+          token: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
+          fallback_token: ${{ github.token }}
+          use_cache: 'true'
+          cache_dependency_path: yarn.lock
 
-      - name: Cache Yarn
-        uses: actions/cache@v6
-        with:
-          path: .yarn/cache
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: ${{ runner.os }}-yarn-
+      - name: "[frontend-library] Install dependencies"
+        run: yarn install
 
-      - name: Install dependencies
-        run: |
-          yarn cache clean
-          yarn install
-
-      - name: Run tests
+      - name: "[frontend-library] Run tests"
         run: yarn test
 
-      - name: Run coverage
+      - name: "[frontend-library] Run coverage"
         run: yarn test:coverage
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -71,39 +67,35 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v7
 
-      - name: Set up Node.js ${{ inputs.node_version }}
-        uses: actions/setup-node@v7
+      - name: "[frontend-library] Set up Node.js and Yarn authentication"
+        uses: Vempain/vempain-workflows/.github/actions/setup-node-yarn-auth@main
         with:
-          node-version: ${{ inputs.node_version }}
-          registry-url: 'https://npm.pkg.github.com'
+          node_version: ${{ inputs.node_version }}
+          use_corepack: 'true'
+          use_scoped_registry: 'true'
+          token: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
+          fallback_token: ${{ github.token }}
+          use_cache: 'true'
+          cache_dependency_path: yarn.lock
 
-      - name: Cache Yarn
-        uses: actions/cache@v6
-        with:
-          path: .yarn/cache
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: ${{ runner.os }}-yarn-
+      - name: "[frontend-library] Install dependencies"
+        run: yarn install
 
-      - name: Install dependencies
-        run: |
-          yarn cache clean
-          yarn install
-
-      - name: Build
+      - name: "[frontend-library] Build"
         run: yarn build:production
 
       - name: Generate versions
         id: version
         uses: Vempain/vempain-workflows/.github/actions/generate-version@main
 
-      - name: Set new package version
+      - name: "[frontend-library] Set new package version"
         run: |
           echo "Setting version: ${newVersion}"
           yarn version --immediate ${newVersion}
         env:
           newVersion: ${{ steps.version.outputs.new_version }}
 
-      - name: Publish to GitHub Packages (npm)
+      - name: "[frontend-library] Publish to GitHub Packages (npm)"
         run: |
           set -euo pipefail
           echo "registry=https://npm.pkg.github.com" > .npmrc
@@ -121,7 +113,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN }}
 
-      - name: Create GitHub Release
+      - name: "[frontend-library] Create GitHub Release"
         uses: Vempain/vempain-workflows/.github/actions/create-release@main
         with:
           github_token: ${{ github.token }}
