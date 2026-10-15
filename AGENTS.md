@@ -12,7 +12,8 @@
   (`vempain-auth`, `vempain-common`), `frontend-spa.yaml`
   (admin, file and website frontends, `vempain-site`), `frontend-library.yaml` (`vempain-auth-frontend`,
   `vempain-common-frontend`, `vempain-rt-editor`, `vempain-rt-renderer`),
-  `rpm-cli-package.yaml` (`vempain-cli`).
+  `rpm-cli-package.yaml` (`vempain-cli`), `gradle-code-style.yaml` (every Gradle repository: the three backends,
+  `vempain-auth`, `vempain-common`, `vempain-cli`; called from each repository's `.github/workflows/style.yaml`).
 
 ## Big-picture architecture
 
@@ -39,10 +40,15 @@
   frontend workflows and this template must be updated before reuse.
 - `rpm-cli-package.yaml`: Java fat-jar -> RPM packaging flow, uploads binary + source RPM artifacts, can attach assets
   to release.
+- `gradle-code-style.yaml`: `verifyBuildConstraints spotlessCheck checkstyleMain checkstyleTest` from
+  `gradle/team-convention.gradle` on every PR and push to `main`, plus an opt-in `autofix` job that pushes a
+  `spotlessApply` commit to the PR branch; no `concurrency: build` on purpose, so it never queues behind or cancels
+  the publish lane.
 
 ## Project-specific conventions to preserve
 
-- Keep `concurrency: build` in reusable workflows unless you intentionally change cross-run serialization.
+- Keep `concurrency: build` in the publishing reusable workflows unless you intentionally change cross-run serialization
+  (`gradle-code-style.yaml` deliberately has none).
 - Preserve token fallback pattern where present:
     - `secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN`.
 - Preserve image naming behavior:
