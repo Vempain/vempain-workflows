@@ -289,6 +289,59 @@ jobs:
 
 ---
 
+### 7. `gradle-code-style.yaml`
+
+**For:** Every Gradle repository that applies the team code convention (`gradle/team-convention.gradle`: Spotless with
+the
+shared Eclipse profile, Checkstyle, build constraints). Runs the same tasks as the repositories' `.githooks/pre-push`
+hook,
+as a separate check next to the CI workflow. Not tied to a workflow family: services, libraries and the CLI all call it.
+
+| Caller                    |
+|---------------------------|
+| `vempain-admin-backend`   |
+| `vempain-file-backend`    |
+| `vempain-website-backend` |
+| `vempain-auth`            |
+| `vempain-common`          |
+| `vempain-cli`             |
+
+**Inputs**
+
+| Name                     | Type      | Default                                                              | Description                                                                                                 |
+|--------------------------|-----------|----------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| `java_version`           | `string`  | `'25'`                                                               | Temurin JDK version                                                                                         |
+| `gradle_tasks`           | `string`  | `verifyBuildConstraints spotlessCheck checkstyleMain checkstyleTest` | Gradle tasks run by the check job                                                                           |
+| `autofix`                | `boolean` | `false`                                                              | Push a `spotlessApply` fixup commit to the PR branch instead of only failing; needs write permissions below |
+| `autofix_commit_message` | `string`  | `style: apply spotless formatting`                                   | Commit message of the fixup commit                                                                          |
+
+**Secrets** — `VEMPAIN_ACTION_TOKEN` (optional, falls back to `GITHUB_TOKEN`; the check compiles the sources, so it must
+be able to read the `vempain-*` artifacts from GitHub Packages)
+
+The check job checks out the full history because the repositories ratchet the convention from `origin/main`
+(`convention.ratchetFrom` in `gradle.properties`). The autofix job never runs for pull requests from forks; enabling it
+requires the caller to grant `contents: write` and `pull-requests: write`.
+
+**Minimal caller example**
+
+```yaml
+# .github/workflows/style.yaml
+name: Code style
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+permissions:
+  contents: read
+  packages: read
+jobs:
+  style:
+    uses: Vempain/vempain-workflows/.github/workflows/gradle-code-style.yaml@main
+    secrets: inherit
+```
+
+---
+
 ## Dependabot templates
 
 Ready-to-use Dependabot configurations live in `dependabot-templates/`.

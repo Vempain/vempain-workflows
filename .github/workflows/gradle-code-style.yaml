@@ -1,0 +1,101 @@
+name: Gradle Code Style
+
+# Reusable workflow for the Vempain Gradle repositories that apply the team code convention
+# (gradle/team-convention.gradle: Spotless with the shared Eclipse profile, Checkstyle, build constraints).
+# It runs the same tasks as the repositories' .githooks/pre-push hook.
+#
+# Callers: vempain-admin-backend, vempain-file-backend, vempain-website-backend, vempain-auth, vempain-common, vempain-cli
+#
+# The check job needs the GitHub Packages token because checkstyleMain compiles the sources first, and the
+# repositories resolve vempain-* artifacts from GitHub Packages (GITHUB_ACTOR / GITHUB_TOKEN in the Gradle builds).
+#
+# No `concurrency: build` here on purpose: the style check must not queue behind, or cancel, the publish lane of
+# the CI workflow that shares that group.
+
+on:
+  workflow_call:
+    inputs:
+      java_version:
+        description: 'Temurin JDK version'
+        type: string
+        default: '25'
+      gradle_tasks:
+        description: 'Gradle tasks run by the check job'
+        type: string
+        default: 'verifyBuildConstraints spotlessCheck checkstyleMain checkstyleTest'
+      autofix:
+        description: >-
+          Instead of only failing a pull request, push a fixup commit with the Spotless formatting applied. The
+          caller must then grant `contents: write` and `pull-requests: write`. Never runs for pull requests from forks.
+        type: boolean
+        default: false
+      autofix_commit_message:
+        description: 'Commit message of the fixup commit pushed by the autofix job'
+        type: string
+        default: 'style: apply spotless formatting'
+    secrets:
+      VEMPAIN_ACTION_TOKEN:
+        description: 'Organisation token with packages:read used to resolve GitHub Packages dependencies (falls back to GITHUB_TOKEN)'
+        required: false
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  check:
+    name: constraints + spotlessCheck + checkstyle
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || github.token }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0          # full history, so the adoption ratchet (convention.ratchetFrom in gradle.properties) can see origin/main
+
+      - name: Set up Java temurin ${{ inputs.java_version }}
+        uses: actions/setup-java@v6
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build constraints, formatting and rules
+        run: ./gradlew --continue ${{ inputs.gradle_tasks }}
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Optional: with this job active, developers never need a working formatter locally at all.
+  autofix:
+    name: Auto-format PR
+    if: inputs.autofix && github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.VEMPAIN_ACTION_TOKEN != '' && secrets.VEMPAIN_ACTION_TOKEN || github.token }}
+    steps:
+      - name: Check out pull request branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Set up Java temurin ${{ inputs.java_version }}
+        uses: actions/setup-java@v6
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Apply Spotless formatting to the whole codebase
+        run: ./gradlew -Pconvention.ratchetFrom=NONE spotlessApply
+
+      - name: Commit and push the formatting
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: ${{ inputs.autofix_commit_message }}
