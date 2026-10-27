@@ -48,6 +48,10 @@ jobs:
       - name: "[frontend-library] Install dependencies"
         run: yarn install
 
+      # Fails the build on lint errors, including deprecated 3rd-party functionality (@typescript-eslint/no-deprecated in every library)
+      - name: "[frontend-library] Lint"
+        run: yarn lint
+
       - name: "[frontend-library] Run tests"
         run: yarn test
 
