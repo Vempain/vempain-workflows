@@ -96,6 +96,6 @@ jobs:
         run: ./gradlew -Pconvention.ratchetFrom=NONE spotlessApply
 
       - name: Commit and push the formatting
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: ${{ inputs.autofix_commit_message }}
