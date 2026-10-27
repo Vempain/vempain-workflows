@@ -33,9 +33,15 @@
 - `spring-boot-service.yaml`: Gradle tests on non-main, Docker publish on main, optional `:api:publish` gated by
   merge-commit message.
 - `spring-boot-library.yaml`: Gradle library publish to GitHub Maven (no Docker), requires `VEMPAIN_ACTION_TOKEN`.
-- `frontend-spa.yaml`: Node/Yarn test lane + Docker publish lane with optional version-bump commit/tag-prefix behavior.
-- `frontend-library.yaml`: npm package publish to GitHub Packages (no Docker), always sets package version before
-  publish.
+- `frontend-spa.yaml`: Node/Yarn lint + build + test lane and Docker publish lane with optional version-bump
+  commit/tag-prefix behavior.
+- `frontend-library.yaml`: npm package publish to GitHub Packages (no Docker), lint + test lane on branches, always sets
+  package
+  version before publish.
+- Both frontend lanes run `yarn lint` before anything else so that lint errors, including the type-aware
+  `@typescript-eslint/no-deprecated` rule every frontend enables, fail the build; the Gradle lanes get the same from
+  `-Werror` in the
+  repositories' `build.gradle` files.
 - `website.yaml`: legacy website pipeline template; the current website repositories use separate Spring Boot and
   frontend workflows and this template must be updated before reuse.
 - `rpm-cli-package.yaml`: Java fat-jar -> RPM packaging flow, uploads binary + source RPM artifacts, can attach assets
