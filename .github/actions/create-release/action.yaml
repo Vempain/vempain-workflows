@@ -1,6 +1,6 @@
 name: Create git tag and GitHub release
 
-description: Optionally create a git tag and then create a GitHub release with Copilot-generated notes.
+description: Optionally create a git tag and then create a GitHub release with Copilot-generated notes (GitHub's generated notes when Copilot is unavailable).
 
 inputs:
   github_token:
@@ -126,9 +126,12 @@ runs:
         echo "head_ref=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
         echo "Generating notes for ${previous_tag}..${RELEASE_TAG}"
 
+    # Non-blocking: Copilot needs AI credits of the token owner ("You have exceeded your monthly quota") and the release must not depend
+    # on them. On failure the next step falls back to GitHub's own generated notes.
     - name: "[create-release] Generate release notes with Copilot"
       if: steps.tags.outputs.has_previous == 'true'
       id: notes
+      continue-on-error: true
       uses: github/copilot-release-notes@main
       with:
         base-ref: ${{ steps.tags.outputs.base_ref }}
@@ -143,12 +146,36 @@ runs:
       uses: actions/github-script@v9
       env:
         RELEASE_ID: ${{ steps.create_release.outputs.release_id }}
+        RELEASE_TAG: ${{ inputs.tag_name }}
+        PREVIOUS_TAG: ${{ steps.tags.outputs.base_ref }}
         RELEASE_NOTES: ${{ steps.notes.outputs.release-notes }}
+        COPILOT_OUTCOME: ${{ steps.notes.outcome }}
         RELEASE_BODY: ${{ inputs.release_body }}
       with:
         github-token: ${{ inputs.github_token }}
         script: |
           const releaseId = Number.parseInt(process.env.RELEASE_ID, 10);
+
+          // Copilot is optional: when it failed (no AI credits, outage) or was skipped, GitHub's own generated notes take its place
+          const fallbackNotes = async () => {
+            const outcome = process.env.COPILOT_OUTCOME;
+            if (outcome === 'failure') {
+              core.warning('Copilot release notes generation failed (for example no AI credits left); using the notes GitHub generates instead.');
+            }
+            const previousTag = process.env.PREVIOUS_TAG;
+            try {
+              const generated = await github.rest.repos.generateReleaseNotes({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: process.env.RELEASE_TAG,
+                ...(previousTag ? { previous_tag_name: previousTag } : {})
+              });
+              return generated.data.body || '';
+            } catch (error) {
+              core.warning(`GitHub release notes generation failed as well: ${error.message}; the release keeps the build details only.`);
+              return '';
+            }
+          };
           const collapseArtifactLists = (text) => {
             const lines = text.split('\n');
             const output = [];
@@ -184,7 +211,8 @@ runs:
             return output.join('\n');
           };
 
-          const generatedNotes = collapseArtifactLists(process.env.RELEASE_NOTES || '');
+          const copilotNotes = (process.env.RELEASE_NOTES || '').trim();
+          const generatedNotes = collapseArtifactLists(copilotNotes || await fallbackNotes());
           const additionalDetails = collapseArtifactLists(process.env.RELEASE_BODY || '');
           const body = [generatedNotes, additionalDetails].filter(Boolean).join('\n\n');
 

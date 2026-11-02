@@ -20,6 +20,10 @@ Workflows that publish artifacts/images call this composite action to compute:
 All publishing workflows generate release descriptions with
 `github/copilot-release-notes@main`. Callers using `secrets: inherit` must make
 the organisation-level `COPILOT_GITHUB_TOKEN` secret available.
+The Copilot step is non-blocking (`continue-on-error`): when it fails, for
+example because the token owner has no AI credits left ("You have exceeded your
+monthly quota"), the release is still created and its notes come from GitHub's
+own release notes generator instead; the run only shows a warning.
 The shared instructions are maintained in
 `.github/actions/create-release/release-notes-instructions.md`; consuming
 repositories do not need a copy. The create-release action also enforces
@@ -250,9 +254,16 @@ jobs:
 
 **For:** Repositories that need a separately distributed RPM package for a Java CLI fat jar.
 
-| Caller                 |
-|------------------------|
-| `vempain-file-backend` |
+| Caller        |
+|---------------|
+| `vempain-cli` |
+
+The workflow builds the fat jar, copies it next to the spec, stamps the version and runtime dependency into the spec,
+adds a `%changelog` entry for the release (date, version, commit; the same entry is appended to the GitHub release notes
+under "RPM changelog") and commits these sources locally (the commit is never pushed); `naveenrajm7/rpmbuild` then archives that `HEAD` and runs `rpmbuild`. `SOURCE_DATE_EPOCH` is set to the
+time of that commit, so every file in the RPM carries the real build time: rpm's AlmaLinux defaults clamp file
+modification times to the newest `%changelog` date, and without the generated entry the files would show the date of
+the last hand-written entry, months old even though the content is fresh.
 
 **Inputs**
 
