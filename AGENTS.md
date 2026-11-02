@@ -45,7 +45,11 @@
 - `website.yaml`: legacy website pipeline template; the current website repositories use separate Spring Boot and
   frontend workflows and this template must be updated before reuse.
 - `rpm-cli-package.yaml`: Java fat-jar -> RPM packaging flow, uploads binary + source RPM artifacts, can attach assets
-  to release.
+  to release. The prepare step commits the built jar and the stamped spec locally because `naveenrajm7/rpmbuild`
+  archives `HEAD`; it also adds a dated `%changelog` entry for the release (output `changelog_entry`, appended to the
+  release notes as "RPM changelog" by the attach step) and exports `SOURCE_DATE_EPOCH` (the prepare commit's time)
+  because rpm clamps packaged file dates to the newest changelog entry. Keep both when changing
+  the step, or the RPM files show the date of the last hand-written changelog entry.
 - `gradle-code-style.yaml`: `verifyBuildConstraints spotlessCheck checkstyleMain checkstyleTest` from
   `gradle/team-convention.gradle` on every PR and push to `main`, plus an opt-in `autofix` job that pushes a
   `spotlessApply` commit to the PR branch; no `concurrency: build` on purpose, so it never queues behind or cancels
@@ -61,6 +65,9 @@
     - Spring/SPA workflows derive image from `${{ github.repository }}` and lowercase it.
     - Website workflow expects explicit `backend_image` / `frontend_image` inputs.
 - Keep release notes artifact links ecosystem-specific (container, maven, npm, RPM assets).
+- Keep the Copilot release-notes step of `create-release` non-blocking (`continue-on-error: true`, outcome checked in the
+  "Update GitHub release notes" step, fallback to `repos.generateReleaseNotes`): the AI credits of the token owner can run
+  out mid-month and a release must never fail because of its description.
 - In `frontend-spa.yaml`, keep loop prevention guard:
     - `github.actor != 'github-actions[bot]'` when `commit_version_bump` is enabled.
 

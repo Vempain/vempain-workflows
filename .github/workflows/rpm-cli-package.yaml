@@ -119,6 +119,7 @@ jobs:
           version_file: ${{ inputs.version_file }}
 
       - name: Prepare RPM build sources
+        id: prepare
         shell: bash
         run: |
           set -euo pipefail
@@ -132,6 +133,23 @@ jobs:
           sed -i "s/^Version:.*/Version:        ${rpmVersion}/" "${{ inputs.spec_file }}"
           sed -i "s/^Requires:.*/Requires:       ${{ inputs.jre_package }}/" "${{ inputs.spec_file }}"
 
+          # rpmbuild (AlmaLinux defaults: %source_date_epoch_from_changelog and %clamp_mtime_to_source_date_epoch)
+          # clamps the modification time of every packaged file to the date of the newest %changelog entry. Without
+          # an entry for this build the files would carry the date of the last hand-written entry, months old even
+          # though their content is fresh. Record this release in the changelog so the RPM documents what it contains.
+          changelogDate="$(LC_ALL=C date -u '+%a %b %d %Y')"
+          changelogHeader="* ${changelogDate} Vempain CI <github-actions[bot]@users.noreply.github.com> - ${rpmVersion}-1"
+          changelogBody="- Automated build of version ${rpmVersion} from commit ${GITHUB_SHA::7}"
+          sed -i "/^%changelog\$/a ${changelogHeader}\n${changelogBody}\n" "${{ inputs.spec_file }}"
+
+          # The same entry goes into the GitHub release notes (see "Attach RPMs to release and update release notes")
+          {
+            echo "changelog_entry<<CHANGELOG_EOF"
+            echo "${changelogHeader}"
+            echo "${changelogBody}"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f "${{ inputs.spec_file }}" "${{ inputs.source_jar_path }}" "${{ inputs.wrapper_script_path }}"
@@ -142,9 +160,16 @@ jobs:
             git commit -m "ci(rpm): prepare sources [skip ci]"
           fi
 
+          # The rpmbuild action archives HEAD (the commit above), so the packaged files are the ones just built and
+          # committed. Pin SOURCE_DATE_EPOCH to that commit's time: rpm then stamps every file with the real build
+          # time instead of midnight of the changelog date, and the build stays reproducible.
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct HEAD)" >> "$GITHUB_ENV"
+
       - name: Build RPM package
         id: rpmbuild
         uses: naveenrajm7/rpmbuild@master
+        env:
+          SOURCE_DATE_EPOCH: ${{ env.SOURCE_DATE_EPOCH }}
         with:
           spec_file: ${{ inputs.spec_file }}
 
@@ -205,6 +230,7 @@ jobs:
           RELEASE_TAG: ${{ steps.version.outputs.new_version }}
           BINARY_RPM_PATH: ${{ steps.discover.outputs.binary_rpm_path }}
           SOURCE_RPM_PATH: ${{ steps.discover.outputs.source_rpm_path }}
+          RPM_CHANGELOG_ENTRY: ${{ steps.prepare.outputs.changelog_entry }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -216,6 +242,7 @@ jobs:
             const releaseId = Number.parseInt(process.env.RELEASE_ID || '', 10);
             const tag = process.env.RELEASE_TAG;
             const assetPaths = [process.env.BINARY_RPM_PATH, process.env.SOURCE_RPM_PATH].filter(Boolean);
+            const changelogEntry = (process.env.RPM_CHANGELOG_ENTRY || '').trim();
 
             if (!Number.isFinite(releaseId) || releaseId <= 0) {
               core.setFailed(`Create GitHub Release did not provide a valid release id (received: ${process.env.RELEASE_ID || 'empty'}).`);
@@ -285,6 +312,11 @@ jobs:
               if (!body.includes(line)) {
                 additions.push(line);
               }
+            }
+
+            // The %changelog entry the prepare step stamped into the spec, as rpm -q --changelog shows it
+            if (changelogEntry && !body.includes('### RPM changelog')) {
+              additions.push('', '### RPM changelog', '```', changelogEntry, '```');
             }
 
             if (additions.length > 0) {
