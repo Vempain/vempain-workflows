@@ -68,7 +68,6 @@ on:
         required: true
 env:
   REGISTRY: ghcr.io
-  REGISTRY_NAMESPACE: vempain
   IMAGE_NAME: ${{ github.repository }}
 concurrency: build
 jobs:
@@ -207,7 +206,7 @@ jobs:
         if: inputs.push_all_version_tags
         shell: bash
         run: |
-          imgName="${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')"
+          imgName="${{ env.REGISTRY }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')"
           docker build . --tag ${imgName}:latest
           echo "Setting versions to: '${mainVersion}', '${baseVersion}', '${newVersion}'"
           docker image tag ${imgName}:latest ${imgName}:${mainVersion}
@@ -222,7 +221,7 @@ jobs:
         if: '!inputs.push_all_version_tags'
         shell: bash
         run: |
-          imgName="${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')"
+          imgName="${{ env.REGISTRY }}/$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')"
           docker build . --tag ${imgName}:${{ steps.version.outputs.new_version }}
           docker push ${imgName}:${{ steps.version.outputs.new_version }}
       - name: Compose release details
