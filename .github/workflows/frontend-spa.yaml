@@ -201,7 +201,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.VEMPAIN_ACTION_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Build and push Docker image (all version tags)
         if: inputs.push_all_version_tags
         shell: bash
