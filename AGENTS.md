@@ -30,8 +30,9 @@
 
 ## Workflow families and boundaries
 
-- `spring-boot-service.yaml`: Gradle tests on non-main, Docker publish on main, optional `:api:publish` gated by
-  merge-commit message.
+- `spring-boot-service.yaml`: Gradle tests on non-main; API-capable backend callers publish both the Docker image and
+  their `:api` Maven artifact on every push to `main`. The `publish_api: true` setting is explicit in those callers;
+  services without a published API may opt out.
 - `spring-boot-library.yaml`: Gradle library publish to GitHub Maven (no Docker), requires `VEMPAIN_ACTION_TOKEN`.
 - `frontend-spa.yaml`: Node/Yarn lint + build + test lane and Docker publish lane with optional version-bump
   commit/tag-prefix behavior.
@@ -87,6 +88,8 @@
 - When changing version/tag logic, update **both** workflow consumers and `.github/actions/generate-version/action.yaml`
   expectations.
 - When adding workflow inputs, update `README.md` tables/examples in the same change.
+- Every push to `main` for an API-capable Spring Boot backend must publish both its Docker image and corresponding
+  Maven API artifact; do not gate API publication on commit-message format.
 - Prefer keeping test-job and release-job trigger conditions aligned with existing `if:` patterns.
 - For registry/auth changes, verify all env aliases (`PACKAGE_AUTH_TOKEN`, `VEMPAIN_ACTION_TOKEN`, `NODE_AUTH_TOKEN`)
   still resolve correctly.
