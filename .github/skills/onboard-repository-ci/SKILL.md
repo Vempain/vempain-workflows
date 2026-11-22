@@ -5,9 +5,9 @@ description: Wire a Vempain repository to CI with the right reusable workflow an
 
 # Onboard a repository to the Vempain CI
 
-1. Pick the workflow: Spring Boot service with a Docker image -> `spring-boot-service.yaml` (optional `:api:publish`
-   gated by the merge
-   commit message); Java library -> `spring-boot-library.yaml` (GitHub Maven, needs `VEMPAIN_ACTION_TOKEN`); Vite SPA ->
+1. Pick the workflow: Spring Boot service with a Docker image -> `spring-boot-service.yaml` (API-capable backends
+   publish `:api` on every `main` push; services without a published API may set `publish_api: false`); Java library ->
+   `spring-boot-library.yaml` (GitHub Maven, needs `VEMPAIN_ACTION_TOKEN`); Vite SPA ->
    `frontend-spa.yaml`
    (tests on PRs, Docker image on `main`, optional version-bump commit); npm library -> `frontend-library.yaml` (version
    from `VERSION`,

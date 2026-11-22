@@ -32,7 +32,7 @@ the Copilot release-notes formatter may otherwise return list-formatted output.
 
 ### 1. `spring-boot-service.yaml`
 
-**For:** Spring Boot services that produce a Docker image (± Maven API artefact).
+**For:** Spring Boot services that produce a Docker image and, when enabled, a Maven API artefact.
 
 | Caller                  | `install_exiftool` | `run_test_setup` |
 |-------------------------|--------------------|------------------|
@@ -41,13 +41,13 @@ the Copilot release-notes formatter may otherwise return list-formatted output.
 
 **Inputs**
 
-| Name                | Type      | Default                 | Description                                                            |
-|---------------------|-----------|-------------------------|------------------------------------------------------------------------|
-| `java_version`      | `string`  | `'25'`                  | Temurin JDK version                                                    |
-| `install_exiftool`  | `boolean` | `false`                 | Install `exiftool` before tests                                        |
-| `run_test_setup`    | `boolean` | `false`                 | Run `./testSetup.sh` before tests                                      |
-| `publish_api`       | `boolean` | `true`                  | Publish `:api` sub-project to GitHub Packages (Maven) on merge commits |
-| `test_results_path` | `string`  | `service/build/reports` | Path to upload as test-results artefact                                |
+| Name                | Type      | Default                 | Description                                                                |
+|---------------------|-----------|-------------------------|----------------------------------------------------------------------------|
+| `java_version`      | `string`  | `'25'`                  | Temurin JDK version                                                        |
+| `install_exiftool`  | `boolean` | `false`                 | Install `exiftool` before tests                                            |
+| `run_test_setup`    | `boolean` | `false`                 | Run `./testSetup.sh` before tests                                          |
+| `publish_api`       | `boolean` | `true`                  | Publish `:api` sub-project to GitHub Packages (Maven) on every `main` push |
+| `test_results_path` | `string`  | `service/build/reports` | Path to upload as test-results artefact                                    |
 
 **Minimal caller example**
 
@@ -70,6 +70,7 @@ jobs:
     with:
       install_exiftool: true
       run_test_setup: true   # admin-backend only
+      publish_api: true      # required for API-capable backends
     secrets: inherit
 ```
 
